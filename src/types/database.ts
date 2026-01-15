@@ -96,6 +96,7 @@ export interface Prompt {
 export interface Run {
   id: string;
   flow_id: string;
+  source_run_id: string | null;
   status: RunStatus;
   message: string | null;
   input_image_url: string | null;

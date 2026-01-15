@@ -71,17 +71,18 @@ export function RunDetail({ run }: RunDetailProps) {
   const handleRetry = async () => {
     setIsRetrying(true);
     try {
-      const response = await fetch(`/api/runs/${run.id}/execute`, {
+      const response = await fetch(`/api/runs/${run.id}/rerun`, {
         method: 'POST',
       });
       if (response.ok) {
-        toast.success('Run started');
-        window.location.reload();
+        const data = await response.json();
+        toast.success('New run created');
+        window.location.href = data.redirect_url;
       } else {
-        toast.error('Failed to retry run');
+        toast.error('Failed to create rerun');
       }
-    } catch (error) {
-      toast.error('Failed to retry run');
+    } catch {
+      toast.error('Failed to create rerun');
     } finally {
       setIsRetrying(false);
     }
@@ -158,6 +159,19 @@ export function RunDetail({ run }: RunDetailProps) {
                 <p className="text-sm">-</p>
               )}
             </div>
+
+            {/* Source Run (if this is a rerun) */}
+            {run.source_run_id && (
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">Rerun of</p>
+                <Link
+                  href={`/runs/${run.source_run_id}`}
+                  className="font-mono text-sm text-blue-500 hover:underline"
+                >
+                  {run.source_run_id.slice(0, 8)}...
+                </Link>
+              </div>
+            )}
 
             {/* Tokens */}
             <div className="space-y-1">

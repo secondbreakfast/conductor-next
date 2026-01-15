@@ -102,6 +102,7 @@ export async function POST(
           promptRun,
           run,
           inputImageUrl,
+          attachmentUrls: run.attachment_urls as string[] | undefined,
           supabase,
         });
 

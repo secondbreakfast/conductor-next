@@ -12,6 +12,7 @@ export interface RunPromptParams {
   promptRun: Record<string, unknown>;
   run: Record<string, unknown>;
   inputImageUrl: string | null;
+  attachmentUrls?: string[];
   supabase: SupabaseClient;
 }
 
