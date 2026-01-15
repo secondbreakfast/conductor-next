@@ -32,7 +32,7 @@ export const CHAT_MODELS = {
 export const IMAGE_MODELS = {
   OpenAI: ['gpt-image-1', 'gpt-image-1.5', 'dall-e-3', 'dall-e-2'],
   Gemini: ['gemini-2.5-flash-image-preview', 'gemini-3-pro-image-preview'],
-  Stability: ['replace_background_and_relight'],
+  Stability: ['remove-background', 'replace-background-and-relight'],
 } as const;
 
 // Video models

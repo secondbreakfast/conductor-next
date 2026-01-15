@@ -28,11 +28,12 @@ export async function runImageStability(params: RunPromptParams): Promise<RunPro
   const model = prompt.selected_model as string || 'replace-background-and-relight';
 
   // Route to appropriate endpoint based on model
-  if (model === 'remove-background') {
+  // Support both hyphenated and underscored versions for backwards compatibility
+  if (model === 'remove-background' || model === 'remove_background') {
     return runRemoveBackground(inputImageUrl, prompt, supabase, apiKey);
   }
 
-  // Default: replace-background-and-relight
+  // Default: replace-background-and-relight (or replace_background_and_relight)
   return runReplaceBackgroundAndRelight(params, inputImageUrl, apiKey);
 }
 
