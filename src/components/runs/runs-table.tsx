@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
 import {
@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Eye, MoreHorizontal, RefreshCw, Trash2, Image, Video } from 'lucide-react';
 import { RunStatus, TOKEN_PRICING } from '@/types/database';
+import { createClient } from '@/lib/supabase/client';
 
 interface PromptRun {
   id: string;
@@ -67,8 +68,51 @@ const statusColors: Record<RunStatus, string> = {
   'timed-out': 'bg-orange-500/10 text-orange-500 border-orange-500/20',
 };
 
-export function RunsTable({ runs }: RunsTableProps) {
+export function RunsTable({ runs: initialRuns }: RunsTableProps) {
+  const [runs, setRuns] = useState(initialRuns);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  // Subscribe to realtime updates for all runs
+  useEffect(() => {
+    const supabase = createClient();
+
+    const channel = supabase
+      .channel('runs-list')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'runs',
+        },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            // Add new run to the top of the list
+            setRuns((prev) => [payload.new as RunWithDetails, ...prev]);
+          } else if (payload.eventType === 'UPDATE') {
+            // Update existing run
+            setRuns((prev) =>
+              prev.map((run) =>
+                run.id === payload.new.id ? { ...run, ...payload.new } : run
+              )
+            );
+          } else if (payload.eventType === 'DELETE') {
+            // Remove deleted run
+            setRuns((prev) => prev.filter((run) => run.id !== payload.old.id));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  // Update runs when initialRuns changes (e.g., filter changes)
+  useEffect(() => {
+    setRuns(initialRuns);
+  }, [initialRuns]);
 
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this run?')) return;

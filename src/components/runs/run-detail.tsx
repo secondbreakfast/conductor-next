@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { formatDistanceToNow, format } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { Run, RunStatus, PromptRun, TOKEN_PRICING } from '@/types/database';
 import { toast } from 'sonner';
+import { createClient } from '@/lib/supabase/client';
 
 interface RunDetailProps {
   run: Run & {
@@ -60,8 +61,75 @@ const statusIcons: Record<RunStatus, React.ReactNode> = {
   'timed-out': <Clock className="h-4 w-4" />,
 };
 
-export function RunDetail({ run }: RunDetailProps) {
+export function RunDetail({ run: initialRun }: RunDetailProps) {
+  const [run, setRun] = useState(initialRun);
   const [isRetrying, setIsRetrying] = useState(false);
+
+  // Subscribe to realtime updates
+  useEffect(() => {
+    const supabase = createClient();
+
+    // Subscribe to run updates
+    const runChannel = supabase
+      .channel(`run-${run.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'runs',
+          filter: `id=eq.${run.id}`,
+        },
+        (payload) => {
+          setRun((prev) => ({ ...prev, ...payload.new }));
+        }
+      )
+      .subscribe();
+
+    // Subscribe to prompt_runs updates
+    const promptRunsChannel = supabase
+      .channel(`prompt-runs-${run.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'prompt_runs',
+          filter: `run_id=eq.${run.id}`,
+        },
+        async () => {
+          // Refetch prompt_runs when they change
+          const { data: promptRuns } = await supabase
+            .from('prompt_runs')
+            .select(`
+              *,
+              prompt:prompts(
+                id,
+                endpoint_type,
+                selected_provider,
+                selected_model,
+                system_prompt,
+                background_prompt,
+                foreground_prompt,
+                negative_prompt,
+                tools
+              )
+            `)
+            .eq('run_id', run.id)
+            .order('created_at', { ascending: true });
+
+          if (promptRuns) {
+            setRun((prev) => ({ ...prev, prompt_runs: promptRuns }));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(runChannel);
+      supabase.removeChannel(promptRunsChannel);
+    };
+  }, [run.id]);
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
