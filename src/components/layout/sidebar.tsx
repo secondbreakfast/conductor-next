@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useSession, signOut } from 'next-auth/react';
 import { cn } from '@/lib/utils';
 import {
   Play,
@@ -10,18 +11,41 @@ import {
   BarChart3,
   Settings,
   Zap,
+  Users,
+  LogOut,
+  ChevronUp,
 } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 const navigation = [
   { name: 'Runs', href: '/runs', icon: Play },
   { name: 'Flows', href: '/flows', icon: Workflow },
   { name: 'Prompts', href: '/prompts', icon: FileText },
   { name: 'Analytics', href: '/analytics', icon: BarChart3 },
+  { name: 'Members', href: '/members', icon: Users },
   { name: 'Settings', href: '/settings', icon: Settings },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { data: session } = useSession();
+
+  const getInitials = (name: string | null | undefined) => {
+    if (!name) return '?';
+    return name
+      .split(' ')
+      .map((n) => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+  };
 
   return (
     <aside className="fixed inset-y-0 left-0 z-50 w-64 border-r border-border bg-card">
@@ -58,12 +82,47 @@ export function Sidebar() {
           })}
         </nav>
 
-        {/* Footer */}
+        {/* User Section */}
         <div className="border-t border-border p-4">
-          <div className="text-xs text-muted-foreground">
-            <p>Conductor v2.0</p>
-            <p className="mt-1">AI Image Processing Platform</p>
-          </div>
+          {session?.user ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm hover:bg-accent transition-colors">
+                <Avatar className="h-8 w-8">
+                  <AvatarImage src={session.user.image || undefined} />
+                  <AvatarFallback className="text-xs">
+                    {getInitials(session.user.name)}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1 text-left">
+                  <p className="font-medium truncate">{session.user.name}</p>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {session.user.email}
+                  </p>
+                </div>
+                <ChevronUp className="h-4 w-4 text-muted-foreground" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-56">
+                <DropdownMenuItem asChild>
+                  <Link href="/members" className="cursor-pointer">
+                    <Users className="mr-2 h-4 w-4" />
+                    Members
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => signOut({ callbackUrl: '/auth/signin' })}
+                  className="cursor-pointer text-destructive focus:text-destructive"
+                >
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Sign out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <div className="text-xs text-muted-foreground px-3">
+              <p>Not signed in</p>
+            </div>
+          )}
         </div>
       </div>
     </aside>
