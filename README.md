@@ -1,36 +1,185 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Conductor (Next.js)
 
-## Getting Started
+AI-powered image upscaling and processing platform. This is a modern rebuild of the original Rails Conductor app using Next.js, Supabase, Tailwind CSS, and shadcn/ui.
 
-First, run the development server:
+## Features
+
+- **Runs Management**: Create, view, and track image/video processing runs
+- **Flows**: Define multi-step workflows with different AI providers
+- **Prompts**: Configure prompts for each step (Chat, ImageToImage, ImageToVideo)
+- **Multi-Provider Support**: OpenAI, Anthropic, Gemini, Stability AI
+- **Cost Tracking**: Monitor token usage and estimated costs
+- **Webhooks**: Receive status updates when runs complete
+- **Analytics**: View usage statistics and trends
+
+## API Compatibility
+
+This app maintains backwards compatibility with the original Rails API:
+
+### Create a Run
+
+```bash
+POST /api/runs
+# or /api/runs.json
+
+{
+  "run": {
+    "flow_id": "uuid-or-legacy-id",
+    "input_image_url": "https://example.com/image.jpg",
+    "variables": {},
+    "webhook_url": "https://your-server.com/webhook"
+  }
+}
+```
+
+### Get a Run
+
+```bash
+GET /api/runs/{id}
+# or /api/runs/{id}.json
+```
+
+### Response Format
+
+```json
+{
+  "id": "uuid",
+  "flow_id": "uuid",
+  "status": "pending | completed | failed | timed-out",
+  "started_at": "2025-01-01T00:00:00.000Z",
+  "completed_at": "2025-01-01T00:00:01.000Z",
+  "created_at": "2025-01-01T00:00:00.000Z",
+  "updated_at": "2025-01-01T00:00:01.000Z",
+  "data": {
+    "image_url": "https://your-storage.com/output.webp"
+  },
+  "url": "/api/runs/{id}.json"
+}
+```
+
+### Legacy Flow IDs
+
+For backwards compatibility, numeric flow IDs are mapped:
+- `1` → Default Image Upscale
+- `2` → Background Replace & Relight
+- `3` → Image to Video
+
+## Setup
+
+### 1. Install Dependencies
+
+```bash
+npm install
+```
+
+### 2. Set Up Supabase
+
+1. Create a new project at [supabase.com](https://supabase.com)
+2. Run the schema in `supabase/schema.sql` via the SQL Editor
+3. Copy your project URL and keys from Settings > API
+
+### 3. Configure Environment Variables
+
+Copy `.env.local.example` to `.env.local` and fill in:
+
+```env
+# Supabase
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+
+# AI Providers
+OPENAI_API_KEY=sk-...
+ANTHROPIC_API_KEY=sk-ant-...
+GEMINI_API_KEY=...
+STABILITY_API_KEY=sk-...
+
+# Google Cloud (for video generation)
+GOOGLE_CLOUD_PROJECT_ID=your-project-id
+```
+
+### 4. Run Development Server
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 5. Deploy
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Deploy to Vercel, Railway, or any platform that supports Next.js:
 
-## Learn More
+```bash
+# Vercel
+vercel deploy
 
-To learn more about Next.js, take a look at the following resources:
+# Or build for production
+npm run build
+npm start
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Supported AI Providers
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Chat Models
+- **OpenAI**: gpt-4.1, gpt-4o, gpt-4o-mini
+- **Anthropic**: claude-3-5-sonnet, claude-3-7-sonnet
+- **Gemini**: gemini-2.5-pro, gemini-2.5-flash
 
-## Deploy on Vercel
+### Image Models
+- **OpenAI**: dall-e-3, gpt-image-1
+- **Gemini**: gemini-2.5-flash-image-preview
+- **Stability**: replace_background_and_relight
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Video Models
+- **Gemini**: veo-3.0-generate-001
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Project Structure
+
+```
+conductor-next/
+├── src/
+│   ├── app/                    # Next.js App Router pages
+│   │   ├── api/               # API routes
+│   │   ├── runs/              # Runs pages
+│   │   ├── flows/             # Flows pages
+│   │   └── ...
+│   ├── components/            # React components
+│   │   ├── ui/               # shadcn/ui components
+│   │   ├── layout/           # Layout components
+│   │   ├── runs/             # Run-specific components
+│   │   └── flows/            # Flow-specific components
+│   ├── lib/                   # Utilities
+│   │   ├── supabase/         # Supabase clients
+│   │   └── runners/          # AI provider implementations
+│   └── types/                 # TypeScript types
+└── supabase/
+    └── schema.sql            # Database schema
+```
+
+## Development
+
+```bash
+# Run dev server with Turbopack
+npm run dev
+
+# Build for production
+npm run build
+
+# Run production build
+npm start
+
+# Lint
+npm run lint
+```
+
+## Migration from Rails
+
+The database schema is designed to be similar to the Rails version. Key differences:
+- Uses Supabase (PostgreSQL) instead of Rails Active Record
+- File storage uses Supabase Storage instead of Active Storage
+- Background jobs use fetch-based async execution instead of SolidQueue
+
+## License
+
+MIT
