@@ -2,12 +2,14 @@ import {
   pgTable,
   uuid,
   text,
+  varchar,
   timestamp,
   integer,
   boolean,
   json,
   real,
   index,
+  uniqueIndex,
 } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
@@ -27,11 +29,13 @@ export const users = pgTable('users', {
 export const flows = pgTable('flows', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: text('name').notNull(),
+  slug: varchar('slug', { length: 50 }),
   description: text('description'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 }, (table) => [
   index('idx_flows_created_at').on(table.createdAt),
+  uniqueIndex('idx_flows_slug_lower').on(table.slug),
 ]);
 
 // Prompts table

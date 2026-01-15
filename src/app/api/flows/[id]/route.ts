@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
+import { resolveFlowByIdentifier, validateSlug } from '@/lib/slug';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -19,13 +20,21 @@ export async function GET(
   const { id } = await params;
   const supabase = createServiceClient();
 
+  const resolved = await resolveFlowByIdentifier(supabase, id);
+  if (!resolved) {
+    return NextResponse.json(
+      { error: 'Flow not found' },
+      { status: 404, headers: corsHeaders }
+    );
+  }
+
   const { data: flow, error } = await supabase
     .from('flows')
     .select(`
       *,
       prompts(*)
     `)
-    .eq('id', id)
+    .eq('id', resolved.id)
     .single();
 
   if (error) {
@@ -67,6 +76,14 @@ async function updateFlow(
   const { id } = await params;
   const supabase = createServiceClient();
 
+  const resolved = await resolveFlowByIdentifier(supabase, id);
+  if (!resolved) {
+    return NextResponse.json(
+      { error: 'Flow not found' },
+      { status: 404, headers: corsHeaders }
+    );
+  }
+
   let body;
   try {
     body = await request.json();
@@ -79,13 +96,46 @@ async function updateFlow(
 
   const { flow: updates } = body;
 
+  const updateData: Record<string, unknown> = {};
+  if (updates.name !== undefined) {
+    updateData.name = updates.name;
+  }
+  if (updates.description !== undefined) {
+    updateData.description = updates.description;
+  }
+
+  if (updates.slug !== undefined) {
+    if (updates.slug === null || updates.slug === '') {
+      updateData.slug = null;
+    } else {
+      const validation = validateSlug(updates.slug);
+      if (!validation.valid) {
+        return NextResponse.json(
+          { error: validation.error },
+          { status: 400, headers: corsHeaders }
+        );
+      }
+      const { data: existing } = await supabase
+        .from('flows')
+        .select('id')
+        .eq('slug', updates.slug.toLowerCase())
+        .neq('id', resolved.id)
+        .single();
+
+      if (existing) {
+        return NextResponse.json(
+          { error: 'A flow with this slug already exists' },
+          { status: 400, headers: corsHeaders }
+        );
+      }
+      updateData.slug = updates.slug.toLowerCase();
+    }
+  }
+
   const { data: flow, error } = await supabase
     .from('flows')
-    .update({
-      ...(updates.name !== undefined && { name: updates.name }),
-      ...(updates.description !== undefined && { description: updates.description }),
-    })
-    .eq('id', id)
+    .update(updateData)
+    .eq('id', resolved.id)
     .select()
     .single();
 
@@ -107,7 +157,15 @@ export async function DELETE(
   const { id } = await params;
   const supabase = createServiceClient();
 
-  const { error } = await supabase.from('flows').delete().eq('id', id);
+  const resolved = await resolveFlowByIdentifier(supabase, id);
+  if (!resolved) {
+    return NextResponse.json(
+      { error: 'Flow not found' },
+      { status: 404, headers: corsHeaders }
+    );
+  }
+
+  const { error } = await supabase.from('flows').delete().eq('id', resolved.id);
 
   if (error) {
     return NextResponse.json(

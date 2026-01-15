@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
+import { validateSlug } from '@/lib/slug';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -64,11 +65,37 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  let slug: string | null = null;
+  if (flow.slug !== undefined && flow.slug !== null && flow.slug !== '') {
+    const validation = validateSlug(flow.slug);
+    if (!validation.valid) {
+      return NextResponse.json(
+        { error: validation.error },
+        { status: 400, headers: corsHeaders }
+      );
+    }
+    slug = flow.slug.toLowerCase();
+
+    const { data: existing } = await supabase
+      .from('flows')
+      .select('id')
+      .eq('slug', slug)
+      .single();
+
+    if (existing) {
+      return NextResponse.json(
+        { error: 'A flow with this slug already exists' },
+        { status: 400, headers: corsHeaders }
+      );
+    }
+  }
+
   const { data: newFlow, error } = await supabase
     .from('flows')
     .insert({
       name: flow.name,
       description: flow.description || null,
+      slug: slug,
     })
     .select()
     .single();
