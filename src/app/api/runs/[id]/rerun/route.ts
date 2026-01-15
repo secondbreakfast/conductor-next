@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
 
 const corsHeaders = {
@@ -68,11 +68,21 @@ export async function POST(
     );
   }
 
-  // Trigger execution asynchronously
+  // Trigger execution using after() to ensure the fetch completes
   const baseUrl = request.nextUrl.origin;
-  fetch(`${baseUrl}/api/runs/${newRun.id}/execute`, {
-    method: 'POST',
-  }).catch(console.error);
+  after(async () => {
+    try {
+      const response = await fetch(`${baseUrl}/api/runs/${newRun.id}/execute`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (!response.ok) {
+        console.error(`Execute trigger failed for rerun ${newRun.id}: ${response.status}`);
+      }
+    } catch (err) {
+      console.error(`Error triggering rerun execution for ${newRun.id}:`, err);
+    }
+  });
 
   return NextResponse.json(
     {

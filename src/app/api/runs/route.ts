@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
 import { CreateRunRequest, RunResponse } from '@/types/database';
 
@@ -133,18 +133,22 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Trigger the run execution asynchronously
-  // In production, this would be handled by a background job queue
-  // For now, we'll call the execute endpoint
-  try {
-    const baseUrl = getBaseUrl(request);
-    fetch(`${baseUrl}/api/runs/${run.id}/execute`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-    }).catch(console.error);
-  } catch (err) {
-    console.error('Error triggering run execution:', err);
-  }
+  // Trigger the run execution using after() to ensure the fetch completes
+  // before the serverless function terminates
+  const baseUrl = getBaseUrl(request);
+  after(async () => {
+    try {
+      const response = await fetch(`${baseUrl}/api/runs/${run.id}/execute`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (!response.ok) {
+        console.error(`Execute trigger failed for run ${run.id}: ${response.status}`);
+      }
+    } catch (err) {
+      console.error(`Error triggering run execution for ${run.id}:`, err);
+    }
+  });
 
   // Return the run in Rails API format
   const response = formatRunResponse(run, request);
