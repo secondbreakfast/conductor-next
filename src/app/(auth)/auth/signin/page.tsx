@@ -1,6 +1,6 @@
 'use client';
 
-import { createClient } from '@/lib/supabase/client';
+import { signIn } from 'next-auth/react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useSearchParams } from 'next/navigation';
@@ -34,21 +34,6 @@ function SignInContent() {
   const callbackUrl = searchParams.get('callbackUrl') || '/';
   const error = searchParams.get('error');
 
-  const handleGoogleSignIn = async () => {
-    const supabase = createClient();
-
-    await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(callbackUrl)}`,
-        queryParams: {
-          access_type: 'offline',
-          prompt: 'consent',
-        },
-      },
-    });
-  };
-
   return (
     <Card className="w-full max-w-md">
       <CardHeader className="text-center">
@@ -66,7 +51,7 @@ function SignInContent() {
           </div>
         )}
         <Button
-          onClick={handleGoogleSignIn}
+          onClick={() => signIn('google', { callbackUrl })}
           className="w-full"
           size="lg"
           variant="outline"
