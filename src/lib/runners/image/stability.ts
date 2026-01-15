@@ -25,6 +25,78 @@ export async function runImageStability(params: RunPromptParams): Promise<RunPro
     throw new Error('Input image URL is required for Stability AI');
   }
 
+  const model = prompt.selected_model as string || 'replace-background-and-relight';
+
+  // Route to appropriate endpoint based on model
+  if (model === 'remove-background') {
+    return runRemoveBackground(inputImageUrl, prompt, supabase, apiKey);
+  }
+
+  // Default: replace-background-and-relight
+  return runReplaceBackgroundAndRelight(params, inputImageUrl, apiKey);
+}
+
+// Remove background endpoint - non-generative, preserves original pixels
+async function runRemoveBackground(
+  inputImageUrl: string,
+  prompt: Record<string, unknown>,
+  supabase: Parameters<typeof uploadToStorage>[0],
+  apiKey: string
+): Promise<RunPromptResult> {
+  // Download input image
+  const imageResponse = await fetch(inputImageUrl);
+  const imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
+
+  // Create form data
+  const formData = new FormData();
+  formData.append('image', new Blob([imageBuffer]), 'input.png');
+
+  // Output format - default to png for transparency support
+  const outputFormat = (prompt.output_format as string) || 'png';
+  formData.append('output_format', outputFormat);
+
+  const response = await fetch(`${STABILITY_API_URL}/stable-image/edit/remove-background`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Accept': 'image/*',
+    },
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Stability Remove Background API error: ${response.status} - ${errorText}`);
+  }
+
+  // Response is the image directly (not JSON)
+  const imageArrayBuffer = await response.arrayBuffer();
+  const buffer = Buffer.from(imageArrayBuffer);
+
+  // Upload to storage
+  const extension = outputFormat;
+  const filename = `stability_rmbg_${Date.now()}.${extension}`;
+  const mimeType = outputFormat === 'webp' ? 'image/webp' : `image/${outputFormat}`;
+  const outputUrl = await uploadToStorage(supabase, buffer, filename, mimeType);
+
+  return {
+    response: {
+      model: 'remove-background',
+      status: 'complete',
+    },
+    outputUrl,
+    outputType: 'image',
+    attachmentUrls: [outputUrl],
+  };
+}
+
+// Replace background and relight endpoint - generative
+async function runReplaceBackgroundAndRelight(
+  params: RunPromptParams,
+  inputImageUrl: string,
+  apiKey: string
+): Promise<RunPromptResult> {
+  const { prompt, run, supabase } = params;
   const variables = (run.variables as Record<string, unknown>) || {};
 
   // Render prompts with variables
@@ -41,7 +113,7 @@ export async function runImageStability(params: RunPromptParams): Promise<RunPro
     variables
   );
 
-  // Download and resize input image
+  // Download input image
   const imageResponse = await fetch(inputImageUrl);
   const imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
 
