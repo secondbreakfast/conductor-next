@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { ArrowLeft, Loader2, Upload, X } from 'lucide-react';
+import { ArrowLeft, Loader2, Upload, X, ImageIcon } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 
@@ -38,6 +38,115 @@ export function NewRunForm({ flows }: NewRunFormProps) {
   const [variables, setVariables] = useState('{}');
   const [attachmentUrls, setAttachmentUrls] = useState<string[]>([]);
   const [newAttachmentUrl, setNewAttachmentUrl] = useState('');
+  const [isUploadingInput, setIsUploadingInput] = useState(false);
+  const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
+  const [isDraggingInput, setIsDraggingInput] = useState(false);
+  const [isDraggingAttachment, setIsDraggingAttachment] = useState(false);
+
+  const uploadFile = async (file: File): Promise<string | null> => {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Upload failed');
+      }
+
+      const data = await response.json();
+      return data.url;
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Upload failed');
+      return null;
+    }
+  };
+
+  const handleInputImageDrop = useCallback(async (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDraggingInput(false);
+
+    const file = e.dataTransfer.files[0];
+    if (!file || !file.type.startsWith('image/')) {
+      toast.error('Please drop an image file');
+      return;
+    }
+
+    setIsUploadingInput(true);
+    const url = await uploadFile(file);
+    if (url) {
+      setInputImageUrl(url);
+      toast.success('Image uploaded');
+    }
+    setIsUploadingInput(false);
+  }, []);
+
+  const handleAttachmentDrop = useCallback(async (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDraggingAttachment(false);
+
+    const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+    if (files.length === 0) {
+      toast.error('Please drop image files');
+      return;
+    }
+
+    setIsUploadingAttachment(true);
+    const uploadedUrls: string[] = [];
+
+    for (const file of files) {
+      const url = await uploadFile(file);
+      if (url) {
+        uploadedUrls.push(url);
+      }
+    }
+
+    if (uploadedUrls.length > 0) {
+      setAttachmentUrls(prev => [...prev, ...uploadedUrls]);
+      toast.success(`${uploadedUrls.length} image(s) uploaded`);
+    }
+    setIsUploadingAttachment(false);
+  }, []);
+
+  const handleInputFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingInput(true);
+    const url = await uploadFile(file);
+    if (url) {
+      setInputImageUrl(url);
+      toast.success('Image uploaded');
+    }
+    setIsUploadingInput(false);
+    e.target.value = '';
+  };
+
+  const handleAttachmentFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    setIsUploadingAttachment(true);
+    const uploadedUrls: string[] = [];
+
+    for (const file of files) {
+      const url = await uploadFile(file);
+      if (url) {
+        uploadedUrls.push(url);
+      }
+    }
+
+    if (uploadedUrls.length > 0) {
+      setAttachmentUrls(prev => [...prev, ...uploadedUrls]);
+      toast.success(`${uploadedUrls.length} image(s) uploaded`);
+    }
+    setIsUploadingAttachment(false);
+    e.target.value = '';
+  };
 
   const handleAddAttachment = () => {
     if (newAttachmentUrl.trim()) {
@@ -142,29 +251,74 @@ export function NewRunForm({ flows }: NewRunFormProps) {
 
           {/* Input Image URL */}
           <div className="space-y-2">
-            <Label htmlFor="inputImageUrl">Input Image URL</Label>
+            <Label htmlFor="inputImageUrl">Input Image</Label>
+            {inputImageUrl ? (
+              <div className="relative inline-block">
+                <img
+                  src={inputImageUrl}
+                  alt="Preview"
+                  className="h-32 w-32 rounded border object-cover"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = '';
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setInputImageUrl('')}
+                  className="absolute -right-2 -top-2 rounded-full bg-destructive p-1 text-destructive-foreground hover:bg-destructive/90"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            ) : (
+              <div
+                className={`relative rounded-lg border-2 border-dashed p-6 text-center transition-colors ${
+                  isDraggingInput
+                    ? 'border-primary bg-primary/5'
+                    : 'border-muted-foreground/25 hover:border-muted-foreground/50'
+                }`}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setIsDraggingInput(true);
+                }}
+                onDragLeave={() => setIsDraggingInput(false)}
+                onDrop={handleInputImageDrop}
+              >
+                {isUploadingInput ? (
+                  <div className="flex flex-col items-center gap-2">
+                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                    <p className="text-sm text-muted-foreground">Uploading...</p>
+                  </div>
+                ) : (
+                  <>
+                    <ImageIcon className="mx-auto h-8 w-8 text-muted-foreground" />
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      Drag and drop an image here, or{' '}
+                      <label className="cursor-pointer text-primary hover:underline">
+                        browse
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={handleInputFileSelect}
+                        />
+                      </label>
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Or paste a URL below
+                    </p>
+                  </>
+                )}
+              </div>
+            )}
             <Input
               id="inputImageUrl"
               type="url"
               placeholder="https://example.com/image.jpg"
               value={inputImageUrl}
               onChange={(e) => setInputImageUrl(e.target.value)}
+              className="mt-2"
             />
-            <p className="text-xs text-muted-foreground">
-              URL of the image to process
-            </p>
-            {inputImageUrl && (
-              <div className="mt-2">
-                <img
-                  src={inputImageUrl}
-                  alt="Preview"
-                  className="h-32 w-32 rounded border object-cover"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).style.display = 'none';
-                  }}
-                />
-              </div>
-            )}
           </div>
 
           {/* Message */}
@@ -197,13 +351,53 @@ export function NewRunForm({ flows }: NewRunFormProps) {
 
           {/* Additional Attachments */}
           <div className="space-y-2">
-            <Label>Additional Attachment URLs</Label>
+            <Label>Additional Attachments</Label>
+            <div
+              className={`relative rounded-lg border-2 border-dashed p-4 text-center transition-colors ${
+                isDraggingAttachment
+                  ? 'border-primary bg-primary/5'
+                  : 'border-muted-foreground/25 hover:border-muted-foreground/50'
+              }`}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setIsDraggingAttachment(true);
+              }}
+              onDragLeave={() => setIsDraggingAttachment(false)}
+              onDrop={handleAttachmentDrop}
+            >
+              {isUploadingAttachment ? (
+                <div className="flex items-center justify-center gap-2">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground">Uploading...</p>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Drag and drop images here, or{' '}
+                  <label className="cursor-pointer text-primary hover:underline">
+                    browse
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      className="hidden"
+                      onChange={handleAttachmentFileSelect}
+                    />
+                  </label>
+                </p>
+              )}
+            </div>
             <div className="flex gap-2">
               <Input
                 type="url"
-                placeholder="https://example.com/image2.jpg"
+                placeholder="Or paste a URL..."
                 value={newAttachmentUrl}
                 onChange={(e) => setNewAttachmentUrl(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAddAttachment();
+                  }
+                }}
               />
               <Button type="button" variant="outline" onClick={handleAddAttachment}>
                 <Upload className="h-4 w-4" />
@@ -212,15 +406,19 @@ export function NewRunForm({ flows }: NewRunFormProps) {
             {attachmentUrls.length > 0 && (
               <div className="mt-2 flex flex-wrap gap-2">
                 {attachmentUrls.map((url, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center gap-1 rounded bg-muted px-2 py-1 text-sm"
-                  >
-                    <span className="max-w-[200px] truncate">{url}</span>
+                  <div key={index} className="relative">
+                    <img
+                      src={url}
+                      alt={`Attachment ${index + 1}`}
+                      className="h-16 w-16 rounded border object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = '';
+                      }}
+                    />
                     <button
                       type="button"
                       onClick={() => handleRemoveAttachment(index)}
-                      className="text-muted-foreground hover:text-foreground"
+                      className="absolute -right-1 -top-1 rounded-full bg-destructive p-0.5 text-destructive-foreground hover:bg-destructive/90"
                     >
                       <X className="h-3 w-3" />
                     </button>
