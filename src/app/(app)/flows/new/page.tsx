@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { generateSlug } from '@/lib/slug';
 import Link from 'next/link';
 import { Header } from '@/components/layout/header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,6 +18,14 @@ export default function NewFlowPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [slug, setSlug] = useState('');
+  const [slugTouched, setSlugTouched] = useState(false);
+
+  useEffect(() => {
+    if (!slugTouched && name.trim()) {
+      setSlug(generateSlug(name));
+    }
+  }, [name, slugTouched]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,6 +44,7 @@ export default function NewFlowPage() {
           flow: {
             name: name.trim(),
             description: description.trim() || null,
+            slug: slug.trim() || null,
           },
         }),
       });
@@ -42,7 +52,7 @@ export default function NewFlowPage() {
       if (response.ok) {
         const data = await response.json();
         toast.success('Flow created');
-        router.push(`/flows/${data.id}`);
+        router.push(`/flows/${data.slug || data.id}`);
       } else {
         const error = await response.json();
         toast.error(error.error || 'Failed to create flow');
@@ -94,6 +104,29 @@ export default function NewFlowPage() {
                     placeholder="Describe what this flow does..."
                     rows={3}
                   />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="slug">
+                    Slug
+                    <span className="ml-2 text-sm font-normal text-muted-foreground">
+                      (optional)
+                    </span>
+                  </Label>
+                  <Input
+                    id="slug"
+                    value={slug}
+                    onChange={(e) => {
+                      setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''));
+                      setSlugTouched(true);
+                    }}
+                    placeholder="my-flow-name"
+                  />
+                  {slug && (
+                    <p className="text-xs text-muted-foreground">
+                      URL: /flows/{slug}
+                    </p>
+                  )}
                 </div>
 
                 <div className="flex justify-end gap-2 pt-4">
