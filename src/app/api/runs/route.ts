@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse, after } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
 import { CreateRunRequest, RunResponse } from '@/types/database';
+import { isUUID, resolveFlowByIdentifier } from '@/lib/slug';
 
 // CORS headers for external API access
 const corsHeaders = {
@@ -98,13 +99,24 @@ export async function POST(request: NextRequest) {
   // Convert flow_id to UUID format if it's a number (backwards compatibility)
   let flowId = runData.flow_id;
   if (typeof flowId === 'number') {
-    // Map legacy numeric IDs to UUID
     const legacyFlowMap: Record<number, string> = {
       1: '00000000-0000-0000-0000-000000000001',
       2: '00000000-0000-0000-0000-000000000002',
       3: '00000000-0000-0000-0000-000000000003',
     };
     flowId = legacyFlowMap[flowId] || flowId.toString();
+  }
+
+  // Resolve flow by slug if not a UUID
+  if (typeof flowId === 'string' && !isUUID(flowId)) {
+    const resolved = await resolveFlowByIdentifier(supabase, flowId);
+    if (!resolved) {
+      return NextResponse.json(
+        { error: 'Flow not found' },
+        { status: 404, headers: corsHeaders }
+      );
+    }
+    flowId = resolved.id;
   }
 
   // Build attachment_urls - support legacy input_image_url by prepending it
