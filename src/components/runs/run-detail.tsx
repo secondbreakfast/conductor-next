@@ -217,7 +217,7 @@ export function RunDetail({ run: initialRun }: RunDetailProps) {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 min-w-0">
       {/* Back Button */}
       <Link href="/runs">
         <Button variant="ghost" size="sm">
@@ -664,7 +664,7 @@ export function RunDetail({ run: initialRun }: RunDetailProps) {
               <Separator />
 
               {/* API Response */}
-              <div>
+              <div className="min-w-0">
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">API Response</p>
                   <Button
@@ -677,9 +677,11 @@ export function RunDetail({ run: initialRun }: RunDetailProps) {
                     Copy
                   </Button>
                 </div>
-                <pre className="rounded-md bg-muted/50 border p-3 text-xs font-mono overflow-auto max-h-48">
-                  {JSON.stringify(apiResponse, null, 2)}
-                </pre>
+                <div className="overflow-hidden rounded-md">
+                  <pre className="bg-muted/50 border p-3 text-xs font-mono overflow-auto max-h-48">
+                    {JSON.stringify(apiResponse, null, 2)}
+                  </pre>
+                </div>
               </div>
             </div>
           ) : run.data?.text ? (
@@ -688,7 +690,7 @@ export function RunDetail({ run: initialRun }: RunDetailProps) {
                 <pre className="whitespace-pre-wrap text-sm">{run.data.text}</pre>
               </div>
               <Separator />
-              <div>
+              <div className="min-w-0">
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">API Response</p>
                   <Button
@@ -701,9 +703,11 @@ export function RunDetail({ run: initialRun }: RunDetailProps) {
                     Copy
                   </Button>
                 </div>
-                <pre className="rounded-md bg-muted/50 border p-3 text-xs font-mono overflow-auto max-h-48">
-                  {JSON.stringify(apiResponse, null, 2)}
-                </pre>
+                <div className="overflow-hidden rounded-md">
+                  <pre className="bg-muted/50 border p-3 text-xs font-mono overflow-auto max-h-48">
+                    {JSON.stringify(apiResponse, null, 2)}
+                  </pre>
+                </div>
               </div>
             </div>
           ) : run.status === 'failed' ? (
@@ -712,15 +716,17 @@ export function RunDetail({ run: initialRun }: RunDetailProps) {
                 <XCircle className="h-8 w-8 text-red-500 mx-auto mb-2" />
                 <p className="text-sm text-red-600 font-medium">Run Failed</p>
                 {run.data?.error !== undefined && (
-                  <p className="text-xs text-red-600/80 mt-1">{String(run.data.error)}</p>
+                  <p className="text-xs text-red-600/80 mt-1 break-words">{String(run.data.error)}</p>
                 )}
               </div>
               <Separator />
-              <div>
+              <div className="min-w-0">
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">API Response</p>
-                <pre className="rounded-md bg-muted/50 border p-3 text-xs font-mono overflow-auto max-h-48">
-                  {JSON.stringify(apiResponse, null, 2)}
-                </pre>
+                <div className="overflow-hidden rounded-md">
+                  <pre className="bg-muted/50 border p-3 text-xs font-mono overflow-auto max-h-48">
+                    {JSON.stringify(apiResponse, null, 2)}
+                  </pre>
+                </div>
               </div>
             </div>
           ) : (

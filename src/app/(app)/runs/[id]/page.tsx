@@ -81,9 +81,9 @@ export default async function RunPage({
   };
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col min-w-0 overflow-hidden">
       <Header title={`Run ${id.slice(0, 8)}...`} />
-      <div className="flex-1 p-6">
+      <div className="flex-1 p-6 overflow-x-hidden">
         <RunDetail run={runWithMedia} />
       </div>
     </div>
