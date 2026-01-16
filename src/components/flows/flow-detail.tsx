@@ -17,6 +17,7 @@ import {
   Trash2,
   GripVertical,
   X,
+  List,
 } from 'lucide-react';
 import { Flow, Prompt, EndpointType, Provider } from '@/types/database';
 import { PromptCard } from './prompt-card';
@@ -144,6 +145,12 @@ export function FlowDetail({ flow }: FlowDetailProps) {
                   <Edit className="mr-2 h-4 w-4" />
                   Edit
                 </Button>
+                <Link href={`/runs?flow_id=${flow.id}`}>
+                  <Button variant="outline" size="sm">
+                    <List className="mr-2 h-4 w-4" />
+                    View Runs
+                  </Button>
+                </Link>
                 <Link href={`/runs/new?flow_id=${flow.id}`}>
                   <Button size="sm">
                     <Play className="mr-2 h-4 w-4" />
