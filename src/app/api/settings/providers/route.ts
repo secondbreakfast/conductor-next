@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
+import { auth } from '@/lib/auth';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,6 +13,14 @@ export async function OPTIONS() {
 }
 
 export async function GET() {
+  const session = await auth();
+  if (!session?.user) {
+    return NextResponse.json(
+      { error: 'Unauthorized' },
+      { status: 401, headers: corsHeaders }
+    );
+  }
+
   const supabase = createServiceClient();
 
   const { data: providers, error } = await supabase
@@ -43,6 +52,14 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  const session = await auth();
+  if (!session?.user) {
+    return NextResponse.json(
+      { error: 'Unauthorized' },
+      { status: 401, headers: corsHeaders }
+    );
+  }
+
   const supabase = createServiceClient();
 
   let body;
