@@ -266,6 +266,7 @@ export function PromptCard({ prompt, index, onDelete }: PromptCardProps) {
                   </div>
                 </div>
 
+                {/* Chat endpoint - show system prompt and tools */}
                 {formData.endpoint_type === 'Chat' && (
                   <>
                     <div className="space-y-2">
@@ -294,8 +295,30 @@ export function PromptCard({ prompt, index, onDelete }: PromptCardProps) {
                   </>
                 )}
 
+                {/* OpenAI/Gemini image - show simple prompt */}
                 {(formData.endpoint_type === 'ImageToImage' ||
-                  formData.endpoint_type === 'ImageToVideo') && (
+                  formData.endpoint_type === 'ImageToVideo') &&
+                  (formData.selected_provider === 'OpenAI' || formData.selected_provider === 'Gemini') && (
+                  <div className="space-y-2">
+                    <Label>Prompt</Label>
+                    <Textarea
+                      value={formData.system_prompt}
+                      onChange={(e) =>
+                        setFormData((prev) => ({ ...prev, system_prompt: e.target.value }))
+                      }
+                      rows={4}
+                      placeholder="Describe what you want to generate or edit..."
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Use {'{{variable}}'} syntax for template variables
+                    </p>
+                  </div>
+                )}
+
+                {/* Stability - show background/foreground/negative prompts */}
+                {(formData.endpoint_type === 'ImageToImage' ||
+                  formData.endpoint_type === 'ImageToVideo') &&
+                  formData.selected_provider === 'Stability' && (
                   <>
                     <div className="space-y-2">
                       <Label>Background Prompt</Label>

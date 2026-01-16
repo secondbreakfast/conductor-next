@@ -99,7 +99,6 @@ export interface Run {
   source_run_id: string | null;
   status: RunStatus;
   message: string | null;
-  input_image_url: string | null;
   webhook_url: string | null;
   conversation_id: string | null;
   variables: Record<string, unknown>;
@@ -200,7 +199,6 @@ export interface CreateRunRequest {
   run: {
     flow_id: string | number;
     message?: string;
-    input_image_url?: string;
     webhook_url?: string;
     variables?: Record<string, unknown>;
     attachment_urls?: string[];

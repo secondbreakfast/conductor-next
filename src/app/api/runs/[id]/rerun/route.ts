@@ -50,7 +50,6 @@ export async function POST(
     .from('runs')
     .insert({
       flow_id: flowId,
-      input_image_url: sourceRun.input_image_url,
       attachment_urls: sourceRun.attachment_urls,
       variables: sourceRun.variables,
       webhook_url: sourceRun.webhook_url,

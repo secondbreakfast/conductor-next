@@ -25,12 +25,14 @@ POST /api/runs
 {
   "run": {
     "flow_id": "uuid-or-legacy-id",
-    "input_image_url": "https://example.com/image.jpg",
+    "attachment_urls": ["https://example.com/image.jpg"],
     "variables": {},
     "webhook_url": "https://your-server.com/webhook"
   }
 }
 ```
+
+The first attachment is used as the primary input image for image processing flows.
 
 ### Get a Run
 

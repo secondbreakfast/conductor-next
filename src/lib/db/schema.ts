@@ -75,7 +75,6 @@ export const runs = pgTable('runs', {
   conversationId: uuid('conversation_id'),
   status: text('status').default('pending'),
   message: text('message'),
-  inputImageUrl: text('input_image_url'),
   webhookUrl: text('webhook_url'),
   variables: json('variables').default({}),
   attachmentUrls: json('attachment_urls').default([]),

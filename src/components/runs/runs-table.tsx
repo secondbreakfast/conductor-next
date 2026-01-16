@@ -38,7 +38,6 @@ interface RunWithDetails {
   flow_id: string;
   status: RunStatus;
   message: string | null;
-  input_image_url: string | null;
   webhook_url: string | null;
   conversation_id: string | null;
   variables: Record<string, unknown>;

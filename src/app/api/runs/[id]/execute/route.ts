@@ -56,7 +56,9 @@ export async function POST(
 
   // Step 2: Execute each prompt in sequence
   let lastOutput: { image_url?: string; video_url?: string; text?: string } = {};
-  let inputImageUrl = run.input_image_url as string | null;
+  const attachmentUrls = run.attachment_urls as string[] | undefined;
+  // Use first attachment as the primary input image
+  let inputImageUrl = attachmentUrls?.[0] || null;
 
   for (const prompt of prompts) {
     try {
@@ -65,7 +67,7 @@ export async function POST(
         run,
         runId,
         inputImageUrl,
-        attachmentUrls: run.attachment_urls as string[] | undefined,
+        attachmentUrls,
       });
 
       // Use output as input for next prompt

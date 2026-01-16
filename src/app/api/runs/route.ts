@@ -107,16 +107,23 @@ export async function POST(request: NextRequest) {
     flowId = legacyFlowMap[flowId] || flowId.toString();
   }
 
+  // Build attachment_urls - support legacy input_image_url by prepending it
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const legacyInputImageUrl = (runData as any).input_image_url;
+  let attachmentUrls = runData.attachment_urls || [];
+  if (legacyInputImageUrl && !attachmentUrls.includes(legacyInputImageUrl)) {
+    attachmentUrls = [legacyInputImageUrl, ...attachmentUrls];
+  }
+
   // Create the run
   const { data: run, error: createError } = await supabase
     .from('runs')
     .insert({
       flow_id: flowId,
       message: runData.message || null,
-      input_image_url: runData.input_image_url || null,
       webhook_url: runData.webhook_url || null,
       variables: runData.variables || {},
-      attachment_urls: runData.attachment_urls || [],
+      attachment_urls: attachmentUrls,
       conversation_id: runData.conversation_id || null,
       status: 'pending',
       started_at: new Date().toISOString(),

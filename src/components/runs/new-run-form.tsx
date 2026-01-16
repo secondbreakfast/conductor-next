@@ -32,16 +32,13 @@ export function NewRunForm({ flows }: NewRunFormProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [flowId, setFlowId] = useState<string>('');
-  const [inputImageUrl, setInputImageUrl] = useState('');
   const [message, setMessage] = useState('');
   const [webhookUrl, setWebhookUrl] = useState('');
   const [variables, setVariables] = useState('{}');
   const [attachmentUrls, setAttachmentUrls] = useState<string[]>([]);
   const [newAttachmentUrl, setNewAttachmentUrl] = useState('');
-  const [isUploadingInput, setIsUploadingInput] = useState(false);
-  const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
-  const [isDraggingInput, setIsDraggingInput] = useState(false);
-  const [isDraggingAttachment, setIsDraggingAttachment] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
 
   const uploadFile = async (file: File): Promise<string | null> => {
     const formData = new FormData();
@@ -66,28 +63,9 @@ export function NewRunForm({ flows }: NewRunFormProps) {
     }
   };
 
-  const handleInputImageDrop = useCallback(async (e: React.DragEvent) => {
+  const handleDrop = useCallback(async (e: React.DragEvent) => {
     e.preventDefault();
-    setIsDraggingInput(false);
-
-    const file = e.dataTransfer.files[0];
-    if (!file || !file.type.startsWith('image/')) {
-      toast.error('Please drop an image file');
-      return;
-    }
-
-    setIsUploadingInput(true);
-    const url = await uploadFile(file);
-    if (url) {
-      setInputImageUrl(url);
-      toast.success('Image uploaded');
-    }
-    setIsUploadingInput(false);
-  }, []);
-
-  const handleAttachmentDrop = useCallback(async (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDraggingAttachment(false);
+    setIsDragging(false);
 
     const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
     if (files.length === 0) {
@@ -95,7 +73,7 @@ export function NewRunForm({ flows }: NewRunFormProps) {
       return;
     }
 
-    setIsUploadingAttachment(true);
+    setIsUploading(true);
     const uploadedUrls: string[] = [];
 
     for (const file of files) {
@@ -109,28 +87,14 @@ export function NewRunForm({ flows }: NewRunFormProps) {
       setAttachmentUrls(prev => [...prev, ...uploadedUrls]);
       toast.success(`${uploadedUrls.length} image(s) uploaded`);
     }
-    setIsUploadingAttachment(false);
+    setIsUploading(false);
   }, []);
 
-  const handleInputFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setIsUploadingInput(true);
-    const url = await uploadFile(file);
-    if (url) {
-      setInputImageUrl(url);
-      toast.success('Image uploaded');
-    }
-    setIsUploadingInput(false);
-    e.target.value = '';
-  };
-
-  const handleAttachmentFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
 
-    setIsUploadingAttachment(true);
+    setIsUploading(true);
     const uploadedUrls: string[] = [];
 
     for (const file of files) {
@@ -144,7 +108,7 @@ export function NewRunForm({ flows }: NewRunFormProps) {
       setAttachmentUrls(prev => [...prev, ...uploadedUrls]);
       toast.success(`${uploadedUrls.length} image(s) uploaded`);
     }
-    setIsUploadingAttachment(false);
+    setIsUploading(false);
     e.target.value = '';
   };
 
@@ -185,7 +149,6 @@ export function NewRunForm({ flows }: NewRunFormProps) {
         body: JSON.stringify({
           run: {
             flow_id: flowId,
-            input_image_url: inputImageUrl || undefined,
             message: message || undefined,
             webhook_url: webhookUrl || undefined,
             variables: parsedVariables,
@@ -249,76 +212,94 @@ export function NewRunForm({ flows }: NewRunFormProps) {
             )}
           </div>
 
-          {/* Input Image URL */}
+          {/* Attachments */}
           <div className="space-y-2">
-            <Label htmlFor="inputImageUrl">Input Image</Label>
-            {inputImageUrl ? (
-              <div className="relative inline-block">
-                <img
-                  src={inputImageUrl}
-                  alt="Preview"
-                  className="h-32 w-32 rounded border object-cover"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src = '';
-                  }}
-                />
-                <button
-                  type="button"
-                  onClick={() => setInputImageUrl('')}
-                  className="absolute -right-2 -top-2 rounded-full bg-destructive p-1 text-destructive-foreground hover:bg-destructive/90"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </div>
-            ) : (
-              <div
-                className={`relative rounded-lg border-2 border-dashed p-6 text-center transition-colors ${
-                  isDraggingInput
-                    ? 'border-primary bg-primary/5'
-                    : 'border-muted-foreground/25 hover:border-muted-foreground/50'
-                }`}
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  setIsDraggingInput(true);
+            <Label>Attachments</Label>
+            <p className="text-xs text-muted-foreground mb-2">
+              The first image will be used as the primary input for image processing flows
+            </p>
+            <div
+              className={`relative rounded-lg border-2 border-dashed p-6 text-center transition-colors ${
+                isDragging
+                  ? 'border-primary bg-primary/5'
+                  : 'border-muted-foreground/25 hover:border-muted-foreground/50'
+              }`}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setIsDragging(true);
+              }}
+              onDragLeave={() => setIsDragging(false)}
+              onDrop={handleDrop}
+            >
+              {isUploading ? (
+                <div className="flex flex-col items-center gap-2">
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground">Uploading...</p>
+                </div>
+              ) : (
+                <>
+                  <ImageIcon className="mx-auto h-8 w-8 text-muted-foreground" />
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Drag and drop images here, or{' '}
+                    <label className="cursor-pointer text-primary hover:underline">
+                      browse
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        className="hidden"
+                        onChange={handleFileSelect}
+                      />
+                    </label>
+                  </p>
+                </>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <Input
+                type="url"
+                placeholder="Or paste a URL..."
+                value={newAttachmentUrl}
+                onChange={(e) => setNewAttachmentUrl(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAddAttachment();
+                  }
                 }}
-                onDragLeave={() => setIsDraggingInput(false)}
-                onDrop={handleInputImageDrop}
-              >
-                {isUploadingInput ? (
-                  <div className="flex flex-col items-center gap-2">
-                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                    <p className="text-sm text-muted-foreground">Uploading...</p>
+              />
+              <Button type="button" variant="outline" onClick={handleAddAttachment}>
+                <Upload className="h-4 w-4" />
+              </Button>
+            </div>
+            {attachmentUrls.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {attachmentUrls.map((url, index) => (
+                  <div key={index} className="relative">
+                    <img
+                      src={url}
+                      alt={`Attachment ${index + 1}`}
+                      className="h-20 w-20 rounded border object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = '';
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveAttachment(index)}
+                      className="absolute -right-1 -top-1 rounded-full bg-destructive p-0.5 text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                    {index === 0 && (
+                      <span className="absolute bottom-1 left-1 rounded bg-primary px-1 py-0.5 text-[10px] font-medium text-primary-foreground">
+                        Primary
+                      </span>
+                    )}
                   </div>
-                ) : (
-                  <>
-                    <ImageIcon className="mx-auto h-8 w-8 text-muted-foreground" />
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      Drag and drop an image here, or{' '}
-                      <label className="cursor-pointer text-primary hover:underline">
-                        browse
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={handleInputFileSelect}
-                        />
-                      </label>
-                    </p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Or paste a URL below
-                    </p>
-                  </>
-                )}
+                ))}
               </div>
             )}
-            <Input
-              id="inputImageUrl"
-              type="url"
-              placeholder="https://example.com/image.jpg"
-              value={inputImageUrl}
-              onChange={(e) => setInputImageUrl(e.target.value)}
-              className="mt-2"
-            />
           </div>
 
           {/* Message */}
@@ -347,85 +328,6 @@ export function NewRunForm({ flows }: NewRunFormProps) {
             <p className="text-xs text-muted-foreground">
               Variables to pass to prompt templates (Mustache syntax)
             </p>
-          </div>
-
-          {/* Additional Attachments */}
-          <div className="space-y-2">
-            <Label>Additional Attachments</Label>
-            <div
-              className={`relative rounded-lg border-2 border-dashed p-4 text-center transition-colors ${
-                isDraggingAttachment
-                  ? 'border-primary bg-primary/5'
-                  : 'border-muted-foreground/25 hover:border-muted-foreground/50'
-              }`}
-              onDragOver={(e) => {
-                e.preventDefault();
-                setIsDraggingAttachment(true);
-              }}
-              onDragLeave={() => setIsDraggingAttachment(false)}
-              onDrop={handleAttachmentDrop}
-            >
-              {isUploadingAttachment ? (
-                <div className="flex items-center justify-center gap-2">
-                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                  <p className="text-sm text-muted-foreground">Uploading...</p>
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  Drag and drop images here, or{' '}
-                  <label className="cursor-pointer text-primary hover:underline">
-                    browse
-                    <input
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      className="hidden"
-                      onChange={handleAttachmentFileSelect}
-                    />
-                  </label>
-                </p>
-              )}
-            </div>
-            <div className="flex gap-2">
-              <Input
-                type="url"
-                placeholder="Or paste a URL..."
-                value={newAttachmentUrl}
-                onChange={(e) => setNewAttachmentUrl(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    handleAddAttachment();
-                  }
-                }}
-              />
-              <Button type="button" variant="outline" onClick={handleAddAttachment}>
-                <Upload className="h-4 w-4" />
-              </Button>
-            </div>
-            {attachmentUrls.length > 0 && (
-              <div className="mt-2 flex flex-wrap gap-2">
-                {attachmentUrls.map((url, index) => (
-                  <div key={index} className="relative">
-                    <img
-                      src={url}
-                      alt={`Attachment ${index + 1}`}
-                      className="h-16 w-16 rounded border object-cover"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src = '';
-                      }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveAttachment(index)}
-                      className="absolute -right-1 -top-1 rounded-full bg-destructive p-0.5 text-destructive-foreground hover:bg-destructive/90"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
 
           {/* Webhook URL */}

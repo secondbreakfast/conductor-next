@@ -2,13 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { formatDistanceToNow, format } from 'date-fns';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { formatDistanceToNow } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   ArrowLeft,
   Copy,
@@ -17,10 +14,14 @@ import {
   RefreshCw,
   Clock,
   Zap,
-  DollarSign,
-  CheckCircle,
+  CheckCircle2,
   XCircle,
   Loader2,
+  ChevronRight,
+  ImageIcon,
+  MessageSquare,
+  Video,
+  Sparkles,
 } from 'lucide-react';
 import { Run, RunStatus, PromptRun, TOKEN_PRICING } from '@/types/database';
 import { toast } from 'sonner';
@@ -47,18 +48,34 @@ interface RunDetailProps {
   };
 }
 
-const statusColors: Record<RunStatus, string> = {
-  pending: 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20',
-  completed: 'bg-green-500/10 text-green-500 border-green-500/20',
-  failed: 'bg-red-500/10 text-red-500 border-red-500/20',
-  'timed-out': 'bg-orange-500/10 text-orange-500 border-orange-500/20',
+const statusConfig: Record<RunStatus, { color: string; icon: React.ReactNode; bg: string }> = {
+  pending: {
+    color: 'text-yellow-600',
+    bg: 'bg-yellow-500/10 border-yellow-500/20',
+    icon: <Loader2 className="h-4 w-4 animate-spin" />,
+  },
+  completed: {
+    color: 'text-green-600',
+    bg: 'bg-green-500/10 border-green-500/20',
+    icon: <CheckCircle2 className="h-4 w-4" />,
+  },
+  failed: {
+    color: 'text-red-600',
+    bg: 'bg-red-500/10 border-red-500/20',
+    icon: <XCircle className="h-4 w-4" />,
+  },
+  'timed-out': {
+    color: 'text-orange-600',
+    bg: 'bg-orange-500/10 border-orange-500/20',
+    icon: <Clock className="h-4 w-4" />,
+  },
 };
 
-const statusIcons: Record<RunStatus, React.ReactNode> = {
-  pending: <Loader2 className="h-4 w-4 animate-spin" />,
-  completed: <CheckCircle className="h-4 w-4" />,
-  failed: <XCircle className="h-4 w-4" />,
-  'timed-out': <Clock className="h-4 w-4" />,
+const endpointIcons: Record<string, React.ReactNode> = {
+  Chat: <MessageSquare className="h-3.5 w-3.5" />,
+  ImageToImage: <ImageIcon className="h-3.5 w-3.5" />,
+  ImageToVideo: <Video className="h-3.5 w-3.5" />,
+  VideoToVideo: <Video className="h-3.5 w-3.5" />,
 };
 
 export function RunDetail({ run: initialRun }: RunDetailProps) {
@@ -69,7 +86,6 @@ export function RunDetail({ run: initialRun }: RunDetailProps) {
   useEffect(() => {
     const supabase = createClient();
 
-    // Subscribe to run updates
     const runChannel = supabase
       .channel(`run-${run.id}`)
       .on(
@@ -86,7 +102,6 @@ export function RunDetail({ run: initialRun }: RunDetailProps) {
       )
       .subscribe();
 
-    // Subscribe to prompt_runs updates
     const promptRunsChannel = supabase
       .channel(`prompt-runs-${run.id}`)
       .on(
@@ -98,7 +113,6 @@ export function RunDetail({ run: initialRun }: RunDetailProps) {
           filter: `run_id=eq.${run.id}`,
         },
         async () => {
-          // Refetch prompt_runs when they change
           const { data: promptRuns } = await supabase
             .from('prompt_runs')
             .select(`
@@ -174,423 +188,472 @@ export function RunDetail({ run: initialRun }: RunDetailProps) {
   const totalTokens =
     run.prompt_runs?.reduce((sum, pr) => sum + (pr.total_tokens || 0), 0) || 0;
   const totalCost = calculateTotalCost();
+  const statusCfg = statusConfig[run.status];
+
+  // Build API response object
+  const apiResponse = {
+    id: run.id,
+    flow_id: run.flow_id,
+    status: run.status,
+    data: run.data,
+    created_at: run.created_at,
+    completed_at: run.completed_at,
+    url: `/api/runs/${run.id}.json`,
+  };
 
   return (
     <div className="space-y-6">
-      {/* Back Button */}
-      <Link href="/runs">
-        <Button variant="ghost" size="sm">
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Runs
-        </Button>
-      </Link>
-
-      {/* Header Card */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-          <div className="space-y-1">
-            <CardTitle className="text-2xl">Run Details</CardTitle>
-            <p className="font-mono text-sm text-muted-foreground">{run.id}</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => copyToClipboard(run.id)}>
-              <Copy className="mr-2 h-4 w-4" />
-              Copy ID
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Link href="/runs">
+            <Button variant="ghost" size="icon" className="h-8 w-8">
+              <ArrowLeft className="h-4 w-4" />
             </Button>
-            {(run.status === 'failed' || run.status === 'pending') && (
-              <Button size="sm" onClick={handleRetry} disabled={isRetrying}>
-                <RefreshCw className={`mr-2 h-4 w-4 ${isRetrying ? 'animate-spin' : ''}`} />
-                {run.status === 'failed' ? 'Retry' : 'Refresh'}
-              </Button>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-6 md:grid-cols-4">
-            {/* Status */}
-            <div className="space-y-1">
-              <p className="text-sm text-muted-foreground">Status</p>
-              <Badge variant="outline" className={statusColors[run.status]}>
-                <span className="mr-1">{statusIcons[run.status]}</span>
-                {run.status}
+          </Link>
+          <div>
+            <div className="flex items-center gap-3">
+              <h1 className="text-lg font-semibold">Run</h1>
+              <Badge variant="outline" className={`${statusCfg.bg} ${statusCfg.color}`}>
+                {statusCfg.icon}
+                <span className="ml-1.5 capitalize">{run.status}</span>
               </Badge>
             </div>
-
-            {/* Flow */}
-            <div className="space-y-1">
-              <p className="text-sm text-muted-foreground">Flow</p>
-              {run.flow ? (
-                <Link href={`/flows/${run.flow.id}`} className="text-sm font-medium hover:underline">
-                  {run.flow.name}
-                </Link>
-              ) : (
-                <p className="text-sm">-</p>
-              )}
-            </div>
-
-            {/* Source Run (if this is a rerun) */}
-            {run.source_run_id && (
-              <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Rerun of</p>
-                <Link
-                  href={`/runs/${run.source_run_id}`}
-                  className="font-mono text-sm text-blue-500 hover:underline"
-                >
-                  {run.source_run_id.slice(0, 8)}...
-                </Link>
-              </div>
-            )}
-
-            {/* Tokens */}
-            <div className="space-y-1">
-              <p className="text-sm text-muted-foreground">Total Tokens</p>
-              <div className="flex items-center gap-2">
-                <Zap className="h-4 w-4 text-muted-foreground" />
-                <span className="font-mono text-sm">{totalTokens.toLocaleString()}</span>
-              </div>
-            </div>
-
-            {/* Cost */}
-            <div className="space-y-1">
-              <p className="text-sm text-muted-foreground">Estimated Cost</p>
-              <div className="flex items-center gap-2">
-                <DollarSign className="h-4 w-4 text-muted-foreground" />
-                <span className="font-mono text-sm">${totalCost.toFixed(4)}</span>
-              </div>
+            <div className="flex items-center gap-2 mt-0.5">
+              <code className="text-xs text-muted-foreground">{run.id}</code>
+              <button
+                onClick={() => copyToClipboard(run.id)}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <Copy className="h-3 w-3" />
+              </button>
             </div>
           </div>
+        </div>
+        <div className="flex items-center gap-2">
+          {(run.status === 'failed' || run.status === 'completed') && (
+            <Button variant="outline" size="sm" onClick={handleRetry} disabled={isRetrying}>
+              <RefreshCw className={`mr-1.5 h-3.5 w-3.5 ${isRetrying ? 'animate-spin' : ''}`} />
+              Rerun
+            </Button>
+          )}
+        </div>
+      </div>
 
-          <Separator className="my-6" />
-
-          {/* Timestamps */}
-          <div className="grid gap-4 md:grid-cols-3">
-            <div>
-              <p className="text-sm text-muted-foreground">Created</p>
-              <p className="text-sm">
-                {format(new Date(run.created_at), 'PPpp')}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {formatDistanceToNow(new Date(run.created_at), { addSuffix: true })}
-              </p>
-            </div>
-            {run.started_at && (
-              <div>
-                <p className="text-sm text-muted-foreground">Started</p>
-                <p className="text-sm">
-                  {format(new Date(run.started_at), 'PPpp')}
-                </p>
-              </div>
-            )}
-            {run.completed_at && (
-              <div>
-                <p className="text-sm text-muted-foreground">Completed</p>
-                <p className="text-sm">
-                  {format(new Date(run.completed_at), 'PPpp')}
-                </p>
-              </div>
-            )}
+      {/* Summary Bar */}
+      <div className="flex items-center gap-6 text-sm">
+        {run.flow && (
+          <div className="flex items-center gap-2">
+            <span className="text-muted-foreground">Flow:</span>
+            <Link href={`/flows/${run.flow.id}`} className="font-medium hover:underline">
+              {run.flow.name}
+            </Link>
           </div>
-        </CardContent>
-      </Card>
+        )}
+        <div className="flex items-center gap-1.5 text-muted-foreground">
+          <Clock className="h-3.5 w-3.5" />
+          <span>{formatDistanceToNow(new Date(run.created_at), { addSuffix: true })}</span>
+        </div>
+        {totalTokens > 0 && (
+          <div className="flex items-center gap-1.5 text-muted-foreground">
+            <Zap className="h-3.5 w-3.5" />
+            <span>{totalTokens.toLocaleString()} tokens</span>
+          </div>
+        )}
+        {totalCost > 0 && (
+          <div className="text-muted-foreground">
+            <span>${totalCost.toFixed(4)}</span>
+          </div>
+        )}
+      </div>
 
-      {/* Main Content Tabs */}
-      <Tabs defaultValue="output" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="output">Output</TabsTrigger>
-          <TabsTrigger value="prompts">Prompts ({run.prompt_runs?.length || 0})</TabsTrigger>
-          <TabsTrigger value="input">Input</TabsTrigger>
-          <TabsTrigger value="raw">Raw Data</TabsTrigger>
-        </TabsList>
-
-        {/* Output Tab */}
-        <TabsContent value="output">
-          <Card>
-            <CardHeader>
-              <CardTitle>Output</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {run.data?.image_url ? (
-                <div className="space-y-4">
-                  <div className="relative aspect-square max-w-xl overflow-hidden rounded-lg border bg-muted">
+      {/* Input Section */}
+      {(run.attachment_urls?.length > 0 || run.message || (run.variables && Object.keys(run.variables).length > 0)) && (
+        <div className="rounded-lg border bg-card">
+          <div className="px-4 py-3 border-b">
+            <h2 className="text-sm font-medium">Input</h2>
+          </div>
+          <div className="p-4 space-y-4">
+            {run.attachment_urls && run.attachment_urls.length > 0 && (
+              <div className="flex gap-3">
+                {run.attachment_urls.map((url, i) => (
+                  <a
+                    key={i}
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="relative block h-20 w-20 overflow-hidden rounded-md border bg-muted hover:opacity-80 transition-opacity"
+                  >
                     <img
-                      src={run.data.image_url}
-                      alt="Generated image"
-                      className="h-full w-full object-contain"
+                      src={url}
+                      alt={`Input ${i + 1}`}
+                      className="h-full w-full object-cover"
                     />
-                  </div>
-                  <div className="flex gap-2">
-                    <a href={run.data.image_url} target="_blank" rel="noopener noreferrer">
-                      <Button variant="outline" size="sm">
-                        <ExternalLink className="mr-2 h-4 w-4" />
-                        Open Full Size
-                      </Button>
-                    </a>
-                    <a href={run.data.image_url} download>
-                      <Button variant="outline" size="sm">
-                        <Download className="mr-2 h-4 w-4" />
-                        Download
-                      </Button>
-                    </a>
-                  </div>
-                </div>
-              ) : run.data?.video_url ? (
-                <div className="space-y-4">
-                  <div className="relative max-w-xl overflow-hidden rounded-lg border bg-muted">
-                    <video
-                      src={run.data.video_url}
-                      controls
-                      className="h-full w-full"
-                    />
-                  </div>
-                  <div className="flex gap-2">
-                    <a href={run.data.video_url} target="_blank" rel="noopener noreferrer">
-                      <Button variant="outline" size="sm">
-                        <ExternalLink className="mr-2 h-4 w-4" />
-                        Open
-                      </Button>
-                    </a>
-                    <a href={run.data.video_url} download>
-                      <Button variant="outline" size="sm">
-                        <Download className="mr-2 h-4 w-4" />
-                        Download
-                      </Button>
-                    </a>
-                  </div>
-                </div>
-              ) : run.data?.text ? (
-                <div className="rounded-lg bg-muted p-4">
-                  <pre className="whitespace-pre-wrap text-sm">{run.data.text}</pre>
-                </div>
-              ) : run.status === 'pending' ? (
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Processing...
-                </div>
-              ) : (
-                <p className="text-muted-foreground">No output available</p>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
+                    {i === 0 && run.attachment_urls.length > 1 && (
+                      <span className="absolute bottom-1 left-1 rounded bg-black/70 px-1 py-0.5 text-[10px] font-medium text-white">
+                        Primary
+                      </span>
+                    )}
+                  </a>
+                ))}
+              </div>
+            )}
+            {run.message && (
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Message</p>
+                <p className="text-sm">{run.message}</p>
+              </div>
+            )}
+            {run.variables && Object.keys(run.variables).length > 0 && (
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Variables</p>
+                <code className="text-xs bg-muted px-2 py-1 rounded block">
+                  {JSON.stringify(run.variables)}
+                </code>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
-        {/* Prompts Tab */}
-        <TabsContent value="prompts">
-          <div className="space-y-4">
-            {run.prompt_runs?.map((pr, index) => (
-              <Card key={pr.id}>
-                <CardHeader className="pb-2">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-base">
-                      Step {index + 1}: {pr.prompt?.endpoint_type || 'Unknown'}
-                    </CardTitle>
-                    <Badge
-                      variant="outline"
-                      className={statusColors[pr.status as RunStatus]}
-                    >
-                      {pr.status}
-                    </Badge>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    {pr.prompt?.selected_provider} / {pr.prompt?.selected_model}
-                  </p>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {/* Prompt Text */}
-                    {pr.prompt?.system_prompt && (
+      {/* Pipeline Steps */}
+      <div className="space-y-3">
+        <h2 className="text-sm font-medium flex items-center gap-2">
+          <Sparkles className="h-4 w-4" />
+          Pipeline Steps
+        </h2>
+
+        {run.prompt_runs && run.prompt_runs.length > 0 ? (
+          <div className="space-y-3">
+            {run.prompt_runs.map((pr, index) => {
+              const stepStatus = statusConfig[pr.status as RunStatus] || statusConfig.pending;
+              const hasPrompt = pr.prompt?.system_prompt || pr.prompt?.background_prompt || pr.prompt?.foreground_prompt;
+
+              return (
+                <div key={pr.id} className="rounded-lg border bg-card overflow-hidden">
+                  {/* Step Header */}
+                  <div className="px-4 py-3 border-b bg-muted/30 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className={`flex items-center justify-center h-6 w-6 rounded-full text-xs font-medium ${stepStatus.bg} ${stepStatus.color}`}>
+                        {pr.status === 'pending' ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : pr.status === 'completed' ? (
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                        ) : (
+                          index + 1
+                        )}
+                      </div>
                       <div>
-                        <p className="mb-2 text-sm font-medium">System Prompt</p>
-                        <div className="rounded-lg bg-muted p-3">
-                          <pre className="whitespace-pre-wrap text-sm">
-                            {pr.prompt.system_prompt}
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium">
+                            {pr.prompt?.endpoint_type || 'Step ' + (index + 1)}
+                          </span>
+                          <Badge variant="secondary" className="text-xs h-5 gap-1">
+                            {endpointIcons[pr.prompt?.endpoint_type || '']}
+                            {pr.prompt?.selected_provider}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground">{pr.prompt?.selected_model}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                      {pr.total_tokens && (
+                        <span className="font-mono">{pr.total_tokens.toLocaleString()} tokens</span>
+                      )}
+                      <Badge variant="outline" className={`${stepStatus.bg} ${stepStatus.color} text-xs`}>
+                        {pr.status}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  {/* Step Content */}
+                  <div className="p-4 space-y-4">
+                    {/* Prompt */}
+                    {hasPrompt && (
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Prompt</p>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 text-xs"
+                            onClick={() => copyToClipboard(
+                              pr.prompt?.system_prompt ||
+                              [pr.prompt?.background_prompt, pr.prompt?.foreground_prompt, pr.prompt?.negative_prompt].filter(Boolean).join('\n\n') ||
+                              ''
+                            )}
+                          >
+                            <Copy className="h-3 w-3 mr-1" />
+                            Copy
+                          </Button>
+                        </div>
+                        <div className="rounded-md bg-muted/50 border">
+                          {pr.prompt?.system_prompt && (
+                            <pre className="p-3 text-sm whitespace-pre-wrap font-mono text-xs leading-relaxed">
+                              {pr.prompt.system_prompt}
+                            </pre>
+                          )}
+                          {(pr.prompt?.background_prompt || pr.prompt?.foreground_prompt || pr.prompt?.negative_prompt) && (
+                            <div className="p-3 space-y-2 text-sm">
+                              {pr.prompt.background_prompt && (
+                                <div>
+                                  <span className="text-xs text-muted-foreground">Background: </span>
+                                  <span className="text-xs">{pr.prompt.background_prompt}</span>
+                                </div>
+                              )}
+                              {pr.prompt.foreground_prompt && (
+                                <div>
+                                  <span className="text-xs text-muted-foreground">Foreground: </span>
+                                  <span className="text-xs">{pr.prompt.foreground_prompt}</span>
+                                </div>
+                              )}
+                              {pr.prompt.negative_prompt && (
+                                <div>
+                                  <span className="text-xs text-muted-foreground">Negative: </span>
+                                  <span className="text-xs">{pr.prompt.negative_prompt}</span>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Input/Output Row */}
+                    {(pr.source_attachment_urls?.length > 0 || pr.attachment_urls?.length > 0) && (
+                      <div className="flex items-start gap-6">
+                        {pr.source_attachment_urls && pr.source_attachment_urls.length > 0 && (
+                          <div>
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Input</p>
+                            <div className="flex gap-2">
+                              {pr.source_attachment_urls.map((url, i) => (
+                                <a
+                                  key={i}
+                                  href={url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="block h-16 w-16 overflow-hidden rounded border bg-muted hover:opacity-80 transition-opacity"
+                                >
+                                  <img src={url} alt="" className="h-full w-full object-cover" />
+                                </a>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {pr.source_attachment_urls?.length > 0 && pr.attachment_urls?.length > 0 && (
+                          <div className="flex items-center self-center pt-6">
+                            <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                          </div>
+                        )}
+
+                        {pr.attachment_urls && pr.attachment_urls.length > 0 && (
+                          <div>
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Output</p>
+                            <div className="flex gap-2">
+                              {pr.attachment_urls.map((url, i) => (
+                                <a
+                                  key={i}
+                                  href={url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="block h-16 w-16 overflow-hidden rounded border bg-muted hover:opacity-80 transition-opacity"
+                                >
+                                  <img src={url} alt="" className="h-full w-full object-cover" />
+                                </a>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Response preview for chat */}
+                    {pr.response && pr.prompt?.endpoint_type === 'Chat' && (
+                      <div>
+                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Response</p>
+                        <div className="rounded-md bg-muted/50 border p-3">
+                          <pre className="text-xs whitespace-pre-wrap font-mono max-h-32 overflow-auto">
+                            {typeof pr.response === 'string'
+                              ? pr.response
+                              : JSON.stringify(pr.response, null, 2)}
                           </pre>
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="mt-2"
-                          onClick={() => copyToClipboard(pr.prompt?.system_prompt || '')}
-                        >
-                          <Copy className="mr-2 h-3 w-3" />
-                          Copy Prompt
-                        </Button>
                       </div>
                     )}
 
-                    {/* Image Prompts */}
-                    {(pr.prompt?.background_prompt ||
-                      pr.prompt?.foreground_prompt ||
-                      pr.prompt?.negative_prompt) && (
-                      <div className="grid gap-4 md:grid-cols-2">
-                        {pr.prompt.background_prompt && (
-                          <div>
-                            <p className="mb-1 text-sm font-medium">Background Prompt</p>
-                            <div className="rounded-lg bg-muted p-2">
-                              <p className="text-sm">{pr.prompt.background_prompt}</p>
-                            </div>
-                          </div>
-                        )}
-                        {pr.prompt.foreground_prompt && (
-                          <div>
-                            <p className="mb-1 text-sm font-medium">Foreground Prompt</p>
-                            <div className="rounded-lg bg-muted p-2">
-                              <p className="text-sm">{pr.prompt.foreground_prompt}</p>
-                            </div>
-                          </div>
-                        )}
-                        {pr.prompt.negative_prompt && (
-                          <div>
-                            <p className="mb-1 text-sm font-medium">Negative Prompt</p>
-                            <div className="rounded-lg bg-muted p-2">
-                              <p className="text-sm">{pr.prompt.negative_prompt}</p>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Token Usage */}
-                    {(pr.input_tokens || pr.output_tokens) && (
-                      <div className="flex gap-4 text-sm">
-                        <div>
-                          <span className="text-muted-foreground">Input: </span>
-                          <span className="font-mono">{pr.input_tokens?.toLocaleString()}</span>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground">Output: </span>
-                          <span className="font-mono">{pr.output_tokens?.toLocaleString()}</span>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground">Total: </span>
-                          <span className="font-mono">{pr.total_tokens?.toLocaleString()}</span>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Output Attachments */}
-                    {pr.attachment_urls && pr.attachment_urls.length > 0 && (
-                      <div>
-                        <p className="mb-2 text-sm font-medium">Output</p>
-                        <div className="flex flex-wrap gap-2">
-                          {pr.attachment_urls.map((url, i) => (
-                            <a
-                              key={i}
-                              href={url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="block h-24 w-24 overflow-hidden rounded border"
-                            >
-                              <img
-                                src={url}
-                                alt={`Output ${i + 1}`}
-                                className="h-full w-full object-cover"
-                              />
-                            </a>
-                          ))}
-                        </div>
+                    {/* Error message */}
+                    {pr.status === 'failed' && pr.response && (
+                      <div className="rounded-md bg-red-500/10 border border-red-500/20 p-3">
+                        <p className="text-xs text-red-600">
+                          {typeof pr.response === 'object' && 'error' in pr.response
+                            ? String(pr.response.error)
+                            : 'Step failed'}
+                        </p>
                       </div>
                     )}
                   </div>
-                </CardContent>
-              </Card>
-            ))}
-            {(!run.prompt_runs || run.prompt_runs.length === 0) && (
-              <p className="text-muted-foreground">No prompt runs available</p>
-            )}
+                </div>
+              );
+            })}
           </div>
-        </TabsContent>
+        ) : run.status === 'pending' ? (
+          <div className="rounded-lg border bg-card p-8 flex items-center justify-center">
+            <div className="flex items-center gap-3 text-muted-foreground">
+              <Loader2 className="h-5 w-5 animate-spin" />
+              <span>Waiting for pipeline to start...</span>
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-lg border bg-card p-8 text-center text-muted-foreground">
+            No pipeline steps recorded
+          </div>
+        )}
+      </div>
 
-        {/* Input Tab */}
-        <TabsContent value="input">
-          <Card>
-            <CardHeader>
-              <CardTitle>Input</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {run.input_image_url && (
-                  <div>
-                    <p className="mb-2 text-sm font-medium">Input Image</p>
-                    <div className="relative aspect-square max-w-xs overflow-hidden rounded-lg border bg-muted">
+      {/* Final Output */}
+      <div className="rounded-lg border bg-card overflow-hidden">
+        <div className="px-4 py-3 border-b bg-muted/30">
+          <h2 className="text-sm font-medium">Final Output</h2>
+        </div>
+        <div className="p-4">
+          {run.status === 'pending' ? (
+            <div className="flex items-center gap-3 text-muted-foreground py-8 justify-center">
+              <Loader2 className="h-5 w-5 animate-spin" />
+              <span>Processing...</span>
+            </div>
+          ) : run.data?.image_url || run.data?.video_url ? (
+            <div className="space-y-4">
+              {/* Media Preview */}
+              <div className="flex gap-6">
+                {run.data.image_url && (
+                  <div className="space-y-3">
+                    <div className="relative overflow-hidden rounded-lg border bg-muted max-w-md">
                       <img
-                        src={run.input_image_url}
-                        alt="Input image"
-                        className="h-full w-full object-contain"
+                        src={run.data.image_url}
+                        alt="Output"
+                        className="w-full h-auto max-h-80 object-contain"
                       />
                     </div>
-                  </div>
-                )}
-
-                {run.message && (
-                  <div>
-                    <p className="mb-2 text-sm font-medium">Message</p>
-                    <div className="rounded-lg bg-muted p-3">
-                      <p className="text-sm">{run.message}</p>
+                    <div className="flex gap-2">
+                      <a href={run.data.image_url} target="_blank" rel="noopener noreferrer">
+                        <Button variant="outline" size="sm" className="h-8">
+                          <ExternalLink className="mr-1.5 h-3.5 w-3.5" />
+                          Open
+                        </Button>
+                      </a>
+                      <a href={run.data.image_url} download>
+                        <Button variant="outline" size="sm" className="h-8">
+                          <Download className="mr-1.5 h-3.5 w-3.5" />
+                          Download
+                        </Button>
+                      </a>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8"
+                        onClick={() => copyToClipboard(run.data.image_url!)}
+                      >
+                        <Copy className="mr-1.5 h-3.5 w-3.5" />
+                        Copy URL
+                      </Button>
                     </div>
                   </div>
                 )}
-
-                {run.variables && Object.keys(run.variables).length > 0 && (
-                  <div>
-                    <p className="mb-2 text-sm font-medium">Variables</p>
-                    <div className="rounded-lg bg-muted p-3">
-                      <pre className="text-sm">
-                        {JSON.stringify(run.variables, null, 2)}
-                      </pre>
+                {run.data.video_url && (
+                  <div className="space-y-3">
+                    <div className="relative overflow-hidden rounded-lg border bg-muted max-w-md">
+                      <video
+                        src={run.data.video_url}
+                        controls
+                        className="w-full h-auto max-h-80"
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <a href={run.data.video_url} target="_blank" rel="noopener noreferrer">
+                        <Button variant="outline" size="sm" className="h-8">
+                          <ExternalLink className="mr-1.5 h-3.5 w-3.5" />
+                          Open
+                        </Button>
+                      </a>
+                      <a href={run.data.video_url} download>
+                        <Button variant="outline" size="sm" className="h-8">
+                          <Download className="mr-1.5 h-3.5 w-3.5" />
+                          Download
+                        </Button>
+                      </a>
                     </div>
                   </div>
                 )}
-
-                {run.attachment_urls && run.attachment_urls.length > 0 && (
-                  <div>
-                    <p className="mb-2 text-sm font-medium">Attachments</p>
-                    <div className="flex flex-wrap gap-2">
-                      {run.attachment_urls.map((url, i) => (
-                        <a
-                          key={i}
-                          href={url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="block h-24 w-24 overflow-hidden rounded border"
-                        >
-                          <img
-                            src={url}
-                            alt={`Attachment ${i + 1}`}
-                            className="h-full w-full object-cover"
-                          />
-                        </a>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {!run.input_image_url &&
-                  !run.message &&
-                  (!run.variables || Object.keys(run.variables).length === 0) &&
-                  (!run.attachment_urls || run.attachment_urls.length === 0) && (
-                    <p className="text-muted-foreground">No input data available</p>
-                  )}
               </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
 
-        {/* Raw Data Tab */}
-        <TabsContent value="raw">
-          <Card>
-            <CardHeader>
-              <CardTitle>Raw Response Data</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ScrollArea className="h-[500px]">
-                <pre className="rounded-lg bg-muted p-4 text-xs">
-                  {JSON.stringify(run, null, 2)}
+              <Separator />
+
+              {/* API Response */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">API Response</p>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 text-xs"
+                    onClick={() => copyToClipboard(JSON.stringify(apiResponse, null, 2))}
+                  >
+                    <Copy className="h-3 w-3 mr-1" />
+                    Copy
+                  </Button>
+                </div>
+                <pre className="rounded-md bg-muted/50 border p-3 text-xs font-mono overflow-auto max-h-48">
+                  {JSON.stringify(apiResponse, null, 2)}
                 </pre>
-              </ScrollArea>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+              </div>
+            </div>
+          ) : run.data?.text ? (
+            <div className="space-y-4">
+              <div className="rounded-md bg-muted/50 border p-4">
+                <pre className="whitespace-pre-wrap text-sm">{run.data.text}</pre>
+              </div>
+              <Separator />
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">API Response</p>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 text-xs"
+                    onClick={() => copyToClipboard(JSON.stringify(apiResponse, null, 2))}
+                  >
+                    <Copy className="h-3 w-3 mr-1" />
+                    Copy
+                  </Button>
+                </div>
+                <pre className="rounded-md bg-muted/50 border p-3 text-xs font-mono overflow-auto max-h-48">
+                  {JSON.stringify(apiResponse, null, 2)}
+                </pre>
+              </div>
+            </div>
+          ) : run.status === 'failed' ? (
+            <div className="space-y-4">
+              <div className="rounded-md bg-red-500/10 border border-red-500/20 p-4 text-center">
+                <XCircle className="h-8 w-8 text-red-500 mx-auto mb-2" />
+                <p className="text-sm text-red-600 font-medium">Run Failed</p>
+                {run.data?.error && (
+                  <p className="text-xs text-red-600/80 mt-1">{String(run.data.error)}</p>
+                )}
+              </div>
+              <Separator />
+              <div>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">API Response</p>
+                <pre className="rounded-md bg-muted/50 border p-3 text-xs font-mono overflow-auto max-h-48">
+                  {JSON.stringify(apiResponse, null, 2)}
+                </pre>
+              </div>
+            </div>
+          ) : (
+            <p className="text-muted-foreground text-center py-8">No output available</p>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
