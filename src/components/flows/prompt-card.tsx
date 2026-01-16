@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import {
@@ -29,8 +28,9 @@ import {
   Image,
   Video,
 } from 'lucide-react';
-import { Prompt, CHAT_MODELS, IMAGE_MODELS, VIDEO_MODELS, EndpointType, Provider } from '@/types/database';
+import { Prompt, EndpointType, Provider } from '@/types/database';
 import { toast } from 'sonner';
+import { useModels, getProvidersFromModels, getModelsForProvider } from '@/hooks/use-models';
 
 interface PromptCardProps {
   prompt: Prompt;
@@ -67,6 +67,10 @@ export function PromptCard({ prompt, index, onDelete }: PromptCardProps) {
     tools: JSON.stringify(prompt.tools || [], null, 2),
     video_duration: prompt.video_duration || 8,
   });
+
+  const { models, isLoading: modelsLoading } = useModels({ endpointType: formData.endpoint_type });
+  const providers = getProvidersFromModels(models);
+  const providerModels = getModelsForProvider(models, formData.selected_provider.toLowerCase());
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -105,41 +109,13 @@ export function PromptCard({ prompt, index, onDelete }: PromptCardProps) {
       } else {
         toast.error('Failed to update prompt');
       }
-    } catch (error) {
+    } catch {
       toast.error('Failed to update prompt');
     } finally {
       setIsSaving(false);
     }
   };
 
-  const getModelsForEndpoint = () => {
-    const provider = formData.selected_provider as keyof typeof CHAT_MODELS;
-    switch (formData.endpoint_type) {
-      case 'Chat':
-        return CHAT_MODELS[provider] || [];
-      case 'ImageToImage':
-        return IMAGE_MODELS[provider as keyof typeof IMAGE_MODELS] || [];
-      case 'ImageToVideo':
-      case 'VideoToVideo':
-        return VIDEO_MODELS[provider as keyof typeof VIDEO_MODELS] || [];
-      default:
-        return [];
-    }
-  };
-
-  const getProvidersForEndpoint = () => {
-    switch (formData.endpoint_type) {
-      case 'Chat':
-        return Object.keys(CHAT_MODELS);
-      case 'ImageToImage':
-        return Object.keys(IMAGE_MODELS);
-      case 'ImageToVideo':
-      case 'VideoToVideo':
-        return Object.keys(VIDEO_MODELS);
-      default:
-        return [];
-    }
-  };
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
@@ -204,7 +180,7 @@ export function PromptCard({ prompt, index, onDelete }: PromptCardProps) {
                         setFormData((prev) => ({
                           ...prev,
                           endpoint_type: value as EndpointType,
-                          selected_provider: getProvidersForEndpoint()[0] as Provider,
+                          selected_provider: '' as Provider,
                           selected_model: '',
                         }))
                       }
@@ -232,14 +208,15 @@ export function PromptCard({ prompt, index, onDelete }: PromptCardProps) {
                           selected_model: '',
                         }))
                       }
+                      disabled={modelsLoading}
                     >
                       <SelectTrigger>
-                        <SelectValue />
+                        <SelectValue placeholder={modelsLoading ? 'Loading...' : 'Select provider'} />
                       </SelectTrigger>
                       <SelectContent>
-                        {getProvidersForEndpoint().map((provider) => (
-                          <SelectItem key={provider} value={provider}>
-                            {provider}
+                        {providers.map((provider) => (
+                          <SelectItem key={provider.id} value={provider.name}>
+                            {provider.name}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -250,17 +227,23 @@ export function PromptCard({ prompt, index, onDelete }: PromptCardProps) {
                     <Label>Model</Label>
                     <Select
                       value={formData.selected_model}
-                      onValueChange={(value) =>
-                        setFormData((prev) => ({ ...prev, selected_model: value }))
-                      }
+                      onValueChange={(value) => {
+                        const selectedModel = providerModels.find((m) => m.model_id === value);
+                        setFormData((prev) => ({
+                          ...prev,
+                          selected_model: value,
+                          ...(selectedModel?.default_params || {}),
+                        }));
+                      }}
+                      disabled={modelsLoading || !formData.selected_provider}
                     >
                       <SelectTrigger>
-                        <SelectValue />
+                        <SelectValue placeholder={modelsLoading ? 'Loading...' : 'Select model'} />
                       </SelectTrigger>
                       <SelectContent>
-                        {getModelsForEndpoint().map((model) => (
-                          <SelectItem key={model} value={model}>
-                            {model}
+                        {providerModels.map((model) => (
+                          <SelectItem key={model.id} value={model.model_id}>
+                            {model.name}
                           </SelectItem>
                         ))}
                       </SelectContent>
