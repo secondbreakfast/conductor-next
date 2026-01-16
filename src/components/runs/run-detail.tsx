@@ -701,7 +701,7 @@ export function RunDetail({ run: initialRun }: RunDetailProps) {
               <div className="rounded-md bg-red-500/10 border border-red-500/20 p-4 text-center">
                 <XCircle className="h-8 w-8 text-red-500 mx-auto mb-2" />
                 <p className="text-sm text-red-600 font-medium">Run Failed</p>
-                {run.data?.error && (
+                {run.data?.error !== undefined && (
                   <p className="text-xs text-red-600/80 mt-1">{String(run.data.error)}</p>
                 )}
               </div>
