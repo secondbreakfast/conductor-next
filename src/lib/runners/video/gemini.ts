@@ -1,4 +1,4 @@
-import { RunPromptParams, RunPromptResult, renderTemplate, imageUrlToBase64, uploadToStorage } from '../index';
+import { RunPromptParams, RunPromptResult, renderTemplate, imageUrlToBase64, getContentTypeFromUrl, uploadToStorage } from '../index';
 
 const VERTEX_AI_URL = 'https://us-central1-aiplatform.googleapis.com/v1';
 
@@ -44,6 +44,7 @@ export async function runVideoGemini(params: RunPromptParams): Promise<RunPrompt
 
   // Download and encode input image
   const imageBase64 = await imageUrlToBase64(inputImageUrl);
+  const imageMimeType = getContentTypeFromUrl(inputImageUrl);
 
   // Build the request
   const url = `${VERTEX_AI_URL}/projects/${projectId}/locations/us-central1/publishers/google/models/${model}:predictLongRunning`;
@@ -53,6 +54,7 @@ export async function runVideoGemini(params: RunPromptParams): Promise<RunPrompt
       {
         image: {
           bytesBase64Encoded: imageBase64,
+          mimeType: imageMimeType,
         },
         prompt: videoPrompt,
       },
