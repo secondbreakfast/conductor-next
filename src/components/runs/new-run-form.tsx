@@ -14,9 +14,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { ArrowLeft, Loader2, Upload, X, ImageIcon } from 'lucide-react';
+import { ArrowLeft, Loader2, Upload, X, ImageIcon, FolderOpen } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
+import { MediaPicker } from '@/components/library/media-picker';
 
 interface Flow {
   id: string;
@@ -39,6 +40,7 @@ export function NewRunForm({ flows }: NewRunFormProps) {
   const [newAttachmentUrl, setNewAttachmentUrl] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [showMediaPicker, setShowMediaPicker] = useState(false);
 
   const uploadFile = async (file: File): Promise<{ id: string; url: string } | null> => {
     const formData = new FormData();
@@ -124,6 +126,16 @@ export function NewRunForm({ flows }: NewRunFormProps) {
 
   const handleRemoveAttachment = (index: number) => {
     setAttachments(attachments.filter((_, i) => i !== index));
+  };
+
+  const handleMediaPickerSelect = (items: { id: string; url: string }[]) => {
+    // Filter out items already in attachments
+    const existingIds = new Set(attachments.map(a => a.id));
+    const newItems = items.filter(item => !existingIds.has(item.id));
+    if (newItems.length > 0) {
+      setAttachments(prev => [...prev, ...newItems]);
+      toast.success(`${newItems.length} item(s) added from library`);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -279,6 +291,10 @@ export function NewRunForm({ flows }: NewRunFormProps) {
               <Button type="button" variant="outline" onClick={handleAddAttachment}>
                 <Upload className="h-4 w-4" />
               </Button>
+              <Button type="button" variant="outline" onClick={() => setShowMediaPicker(true)}>
+                <FolderOpen className="h-4 w-4 mr-2" />
+                Library
+              </Button>
             </div>
             {attachments.length > 0 && (
               <div className="mt-2 flex flex-wrap gap-2">
@@ -378,6 +394,12 @@ export function NewRunForm({ flows }: NewRunFormProps) {
           </div>
         </CardContent>
       </Card>
+
+      <MediaPicker
+        open={showMediaPicker}
+        onOpenChange={setShowMediaPicker}
+        onSelect={handleMediaPickerSelect}
+      />
     </form>
   );
 }
