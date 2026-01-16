@@ -147,7 +147,7 @@ async function pollForVideoResult(
         // Upload to Supabase storage
         const buffer = Buffer.from(videoData, 'base64');
         const filename = `gemini_video_${Date.now()}.mp4`;
-        const outputUrl = await uploadToStorage(supabase, buffer, filename, 'video/mp4');
+        const { url: outputUrl, mediaId } = await uploadToStorage(supabase, buffer, filename, 'video/mp4');
 
         // Sanitize response - remove base64 data
         const sanitizedResponse = {
@@ -162,8 +162,10 @@ async function pollForVideoResult(
         return {
           response: sanitizedResponse,
           outputUrl,
+          outputMediaId: mediaId,
           outputType: 'video',
           attachmentUrls: [outputUrl],
+          outputMediaIds: [mediaId],
         };
       }
 

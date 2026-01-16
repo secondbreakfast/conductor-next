@@ -78,7 +78,7 @@ async function runRemoveBackground(
   const extension = outputFormat;
   const filename = `stability_rmbg_${Date.now()}.${extension}`;
   const mimeType = outputFormat === 'webp' ? 'image/webp' : `image/${outputFormat}`;
-  const outputUrl = await uploadToStorage(supabase, buffer, filename, mimeType);
+  const { url: outputUrl, mediaId } = await uploadToStorage(supabase, buffer, filename, mimeType);
 
   return {
     response: {
@@ -86,8 +86,10 @@ async function runRemoveBackground(
       status: 'complete',
     },
     outputUrl,
+    outputMediaId: mediaId,
     outputType: 'image',
     attachmentUrls: [outputUrl],
+    outputMediaIds: [mediaId],
   };
 }
 
@@ -202,7 +204,7 @@ async function runReplaceBackgroundAndRelight(
       const extension = outputFormat;
       const filename = `stability_${Date.now()}.${extension}`;
       const mimeType = outputFormat === 'webp' ? 'image/webp' : `image/${outputFormat}`;
-      const outputUrl = await uploadToStorage(supabase, buffer, filename, mimeType);
+      const { url: outputUrl, mediaId } = await uploadToStorage(supabase, buffer, filename, mimeType);
 
       return {
         response: {
@@ -211,8 +213,10 @@ async function runReplaceBackgroundAndRelight(
           finish_reason: output.finish_reason,
         },
         outputUrl,
+        outputMediaId: mediaId,
         outputType: 'image',
         attachmentUrls: [outputUrl],
+        outputMediaIds: [mediaId],
       };
     }
 
@@ -274,7 +278,7 @@ async function pollForResult(
       // Upload to storage
       const buffer = Buffer.from(imageData, 'base64');
       const filename = `stability_${Date.now()}.${extension}`;
-      const outputUrl = await uploadToStorage(supabase, buffer, filename, mimeType);
+      const { url: outputUrl, mediaId } = await uploadToStorage(supabase, buffer, filename, mimeType);
 
       return {
         response: {
@@ -283,8 +287,10 @@ async function pollForResult(
           finish_reason: output.finish_reason,
         },
         outputUrl,
+        outputMediaId: mediaId,
         outputType: isVideo ? 'video' : 'image',
         attachmentUrls: [outputUrl],
+        outputMediaIds: [mediaId],
       };
     }
 

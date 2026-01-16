@@ -35,12 +35,12 @@ export function NewRunForm({ flows }: NewRunFormProps) {
   const [message, setMessage] = useState('');
   const [webhookUrl, setWebhookUrl] = useState('');
   const [variables, setVariables] = useState('{}');
-  const [attachmentUrls, setAttachmentUrls] = useState<string[]>([]);
+  const [attachments, setAttachments] = useState<{ id: string | null; url: string }[]>([]);
   const [newAttachmentUrl, setNewAttachmentUrl] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 
-  const uploadFile = async (file: File): Promise<string | null> => {
+  const uploadFile = async (file: File): Promise<{ id: string; url: string } | null> => {
     const formData = new FormData();
     formData.append('file', file);
 
@@ -56,7 +56,7 @@ export function NewRunForm({ flows }: NewRunFormProps) {
       }
 
       const data = await response.json();
-      return data.url;
+      return { id: data.id, url: data.url };
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Upload failed');
       return null;
@@ -67,25 +67,27 @@ export function NewRunForm({ flows }: NewRunFormProps) {
     e.preventDefault();
     setIsDragging(false);
 
-    const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+    const files = Array.from(e.dataTransfer.files).filter(f =>
+      f.type.startsWith('image/') || f.type.startsWith('video/')
+    );
     if (files.length === 0) {
-      toast.error('Please drop image files');
+      toast.error('Please drop image or video files');
       return;
     }
 
     setIsUploading(true);
-    const uploadedUrls: string[] = [];
+    const uploadedAttachments: { id: string; url: string }[] = [];
 
     for (const file of files) {
-      const url = await uploadFile(file);
-      if (url) {
-        uploadedUrls.push(url);
+      const result = await uploadFile(file);
+      if (result) {
+        uploadedAttachments.push(result);
       }
     }
 
-    if (uploadedUrls.length > 0) {
-      setAttachmentUrls(prev => [...prev, ...uploadedUrls]);
-      toast.success(`${uploadedUrls.length} image(s) uploaded`);
+    if (uploadedAttachments.length > 0) {
+      setAttachments(prev => [...prev, ...uploadedAttachments]);
+      toast.success(`${uploadedAttachments.length} file(s) uploaded`);
     }
     setIsUploading(false);
   }, []);
@@ -95,18 +97,18 @@ export function NewRunForm({ flows }: NewRunFormProps) {
     if (files.length === 0) return;
 
     setIsUploading(true);
-    const uploadedUrls: string[] = [];
+    const uploadedAttachments: { id: string; url: string }[] = [];
 
     for (const file of files) {
-      const url = await uploadFile(file);
-      if (url) {
-        uploadedUrls.push(url);
+      const result = await uploadFile(file);
+      if (result) {
+        uploadedAttachments.push(result);
       }
     }
 
-    if (uploadedUrls.length > 0) {
-      setAttachmentUrls(prev => [...prev, ...uploadedUrls]);
-      toast.success(`${uploadedUrls.length} image(s) uploaded`);
+    if (uploadedAttachments.length > 0) {
+      setAttachments(prev => [...prev, ...uploadedAttachments]);
+      toast.success(`${uploadedAttachments.length} file(s) uploaded`);
     }
     setIsUploading(false);
     e.target.value = '';
@@ -114,13 +116,14 @@ export function NewRunForm({ flows }: NewRunFormProps) {
 
   const handleAddAttachment = () => {
     if (newAttachmentUrl.trim()) {
-      setAttachmentUrls([...attachmentUrls, newAttachmentUrl.trim()]);
+      // Manual URL entry - no media ID
+      setAttachments([...attachments, { id: null, url: newAttachmentUrl.trim() }]);
       setNewAttachmentUrl('');
     }
   };
 
   const handleRemoveAttachment = (index: number) => {
-    setAttachmentUrls(attachmentUrls.filter((_, i) => i !== index));
+    setAttachments(attachments.filter((_, i) => i !== index));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -143,6 +146,10 @@ export function NewRunForm({ flows }: NewRunFormProps) {
     setIsSubmitting(true);
 
     try {
+      // Extract URLs and media IDs from attachments
+      const attachmentUrls = attachments.map(a => a.url);
+      const inputMediaIds = attachments.map(a => a.id).filter((id): id is string => id !== null);
+
       const response = await fetch('/api/runs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -153,6 +160,7 @@ export function NewRunForm({ flows }: NewRunFormProps) {
             webhook_url: webhookUrl || undefined,
             variables: parsedVariables,
             attachment_urls: attachmentUrls.length > 0 ? attachmentUrls : undefined,
+            input_media_ids: inputMediaIds.length > 0 ? inputMediaIds : undefined,
           },
         }),
       });
@@ -272,12 +280,12 @@ export function NewRunForm({ flows }: NewRunFormProps) {
                 <Upload className="h-4 w-4" />
               </Button>
             </div>
-            {attachmentUrls.length > 0 && (
+            {attachments.length > 0 && (
               <div className="mt-2 flex flex-wrap gap-2">
-                {attachmentUrls.map((url, index) => (
-                  <div key={index} className="relative">
+                {attachments.map((attachment, index) => (
+                  <div key={index} className="relative group">
                     <img
-                      src={url}
+                      src={attachment.url}
                       alt={`Attachment ${index + 1}`}
                       className="h-20 w-20 rounded border object-cover"
                       onError={(e) => {
@@ -294,6 +302,11 @@ export function NewRunForm({ flows }: NewRunFormProps) {
                     {index === 0 && (
                       <span className="absolute bottom-1 left-1 rounded bg-primary px-1 py-0.5 text-[10px] font-medium text-primary-foreground">
                         Primary
+                      </span>
+                    )}
+                    {attachment.id && (
+                      <span className="absolute bottom-1 right-1 rounded bg-green-500 px-1 py-0.5 text-[8px] font-medium text-white opacity-0 group-hover:opacity-100 transition-opacity">
+                        {attachment.id}
                       </span>
                     )}
                   </div>

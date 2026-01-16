@@ -88,7 +88,7 @@ export async function runImageOpenAI(params: RunPromptParams): Promise<RunPrompt
       }
 
       const filename = `openai_${Date.now()}.png`;
-      const outputUrl = await uploadToStorage(supabase, outputBuffer, filename, 'image/png');
+      const { url: outputUrl, mediaId } = await uploadToStorage(supabase, outputBuffer, filename, 'image/png');
 
       return {
         response: {
@@ -96,8 +96,10 @@ export async function runImageOpenAI(params: RunPromptParams): Promise<RunPrompt
           model,
         },
         outputUrl,
+        outputMediaId: mediaId,
         outputType: 'image',
         attachmentUrls: [outputUrl],
+        outputMediaIds: [mediaId],
       };
     }
 
@@ -143,7 +145,7 @@ export async function runImageOpenAI(params: RunPromptParams): Promise<RunPrompt
     // Upload image to Supabase storage
     const buffer = Buffer.from(imageData, 'base64');
     const filename = `openai_${Date.now()}.png`;
-    const outputUrl = await uploadToStorage(supabase, buffer, filename, 'image/png');
+    const { url: outputUrl, mediaId } = await uploadToStorage(supabase, buffer, filename, 'image/png');
 
     return {
       response: {
@@ -151,8 +153,10 @@ export async function runImageOpenAI(params: RunPromptParams): Promise<RunPrompt
         model,
       },
       outputUrl,
+      outputMediaId: mediaId,
       outputType: 'image',
       attachmentUrls: [outputUrl],
+      outputMediaIds: [mediaId],
     };
   } catch (error) {
     console.error('OpenAI image error:', error);

@@ -78,6 +78,7 @@ export const runs = pgTable('runs', {
   webhookUrl: text('webhook_url'),
   variables: json('variables').default({}),
   attachmentUrls: json('attachment_urls').default([]),
+  inputMediaIds: json('input_media_ids').default([]), // Array of media IDs for inputs
   data: json('data').default({}),
   startedAt: timestamp('started_at', { withTimezone: true }),
   completedAt: timestamp('completed_at', { withTimezone: true }),

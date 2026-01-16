@@ -103,6 +103,7 @@ export interface Run {
   conversation_id: string | null;
   variables: Record<string, unknown>;
   attachment_urls: string[];
+  input_media_ids: string[]; // Array of media IDs for inputs
   started_at: string | null;
   completed_at: string | null;
   created_at: string;
@@ -117,6 +118,7 @@ export interface Run {
   // Virtual fields
   flow?: Flow;
   prompt_runs?: PromptRun[];
+  input_media?: Media[]; // Populated media objects
   url?: string;
 }
 
@@ -138,10 +140,14 @@ export interface PromptRun {
   // Output attachments
   source_attachment_urls: string[];
   attachment_urls: string[];
+  input_media_ids: string[]; // Array of media IDs for inputs
+  output_media_ids: string[]; // Array of media IDs for outputs
   // Virtual
   prompt?: Prompt;
   run?: Run;
   responses?: Response[];
+  input_media?: Media[]; // Populated media objects
+  output_media?: Media[]; // Populated media objects
 }
 
 export interface Response {
@@ -181,6 +187,20 @@ export interface RunWebhook {
   last_attempted_at: string | null;
   error_message: string | null;
   endpoint_url: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Media {
+  id: string; // img_xxxxxxxx or vdo_xxxxxxxx
+  type: 'image' | 'video';
+  filename: string;
+  url: string;
+  mime_type: string | null;
+  size: number | null;
+  width: number | null;
+  height: number | null;
+  duration: number | null; // seconds, for videos
   created_at: string;
   updated_at: string;
 }

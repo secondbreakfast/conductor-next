@@ -85,7 +85,9 @@ export async function runImageGemini(params: RunPromptParams): Promise<RunPrompt
     // Extract image from response
     const candidates = data.candidates || [];
     let outputUrl: string | undefined;
+    let outputMediaId: string | undefined;
     const attachmentOutputUrls: string[] = [];
+    const outputMediaIds: string[] = [];
 
     if (candidates.length > 0) {
       const content = candidates[0].content;
@@ -96,12 +98,14 @@ export async function runImageGemini(params: RunPromptParams): Promise<RunPrompt
             const buffer = Buffer.from(part.inlineData.data, 'base64');
             const extension = part.inlineData.mimeType.split('/')[1] || 'png';
             const filename = `gemini_${Date.now()}.${extension}`;
-            const uploadedUrl = await uploadToStorage(supabase, buffer, filename, part.inlineData.mimeType);
+            const { url: uploadedUrl, mediaId } = await uploadToStorage(supabase, buffer, filename, part.inlineData.mimeType);
 
             if (!outputUrl) {
               outputUrl = uploadedUrl;
+              outputMediaId = mediaId;
             }
             attachmentOutputUrls.push(uploadedUrl);
+            outputMediaIds.push(mediaId);
           }
         }
       }
@@ -134,8 +138,10 @@ export async function runImageGemini(params: RunPromptParams): Promise<RunPrompt
         total: data.usageMetadata?.totalTokenCount,
       },
       outputUrl,
+      outputMediaId,
       outputType: 'image',
       attachmentUrls: attachmentOutputUrls,
+      outputMediaIds,
     };
   } catch (error) {
     console.error('Gemini image error:', error);

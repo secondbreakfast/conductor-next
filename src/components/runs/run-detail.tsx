@@ -7,6 +7,11 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
+import {
   ArrowLeft,
   Copy,
   Download,
@@ -18,18 +23,21 @@ import {
   XCircle,
   Loader2,
   ChevronRight,
+  ChevronDown,
   ImageIcon,
   MessageSquare,
   Video,
   Sparkles,
+  DollarSign,
 } from 'lucide-react';
-import { Run, RunStatus, PromptRun, TOKEN_PRICING } from '@/types/database';
+import { Run, RunStatus, PromptRun, TOKEN_PRICING, Media } from '@/types/database';
 import { toast } from 'sonner';
 import { createClient } from '@/lib/supabase/client';
 
 interface RunDetailProps {
   run: Run & {
     flow?: { id: string; name: string; description: string | null } | null;
+    input_media?: Media[];
     prompt_runs?: Array<
       PromptRun & {
         prompt?: {
@@ -43,6 +51,8 @@ interface RunDetailProps {
           negative_prompt: string | null;
           tools: Record<string, unknown>[] | null;
         } | null;
+        input_media?: Media[];
+        output_media?: Media[];
       }
     >;
   };
@@ -81,6 +91,7 @@ const endpointIcons: Record<string, React.ReactNode> = {
 export function RunDetail({ run: initialRun }: RunDetailProps) {
   const [run, setRun] = useState(initialRun);
   const [isRetrying, setIsRetrying] = useState(false);
+  const [openSteps, setOpenSteps] = useState<Record<string, boolean>>({});
 
   // Subscribe to realtime updates
   useEffect(() => {
@@ -185,6 +196,10 @@ export function RunDetail({ run: initialRun }: RunDetailProps) {
     return total;
   };
 
+  const toggleStep = (id: string) => {
+    setOpenSteps((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
+
   const totalTokens =
     run.prompt_runs?.reduce((sum, pr) => sum + (pr.total_tokens || 0), 0) || 0;
   const totalCost = calculateTotalCost();
@@ -203,68 +218,78 @@ export function RunDetail({ run: initialRun }: RunDetailProps) {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Link href="/runs">
-            <Button variant="ghost" size="icon" className="h-8 w-8">
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-          </Link>
-          <div>
-            <div className="flex items-center gap-3">
-              <h1 className="text-lg font-semibold">Run</h1>
-              <Badge variant="outline" className={`${statusCfg.bg} ${statusCfg.color}`}>
-                {statusCfg.icon}
-                <span className="ml-1.5 capitalize">{run.status}</span>
-              </Badge>
-            </div>
-            <div className="flex items-center gap-2 mt-0.5">
-              <code className="text-xs text-muted-foreground">{run.id}</code>
-              <button
-                onClick={() => copyToClipboard(run.id)}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <Copy className="h-3 w-3" />
-              </button>
-            </div>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          {(run.status === 'failed' || run.status === 'completed') && (
-            <Button variant="outline" size="sm" onClick={handleRetry} disabled={isRetrying}>
-              <RefreshCw className={`mr-1.5 h-3.5 w-3.5 ${isRetrying ? 'animate-spin' : ''}`} />
-              Rerun
-            </Button>
-          )}
-        </div>
-      </div>
+      {/* Back Button */}
+      <Link href="/runs">
+        <Button variant="ghost" size="sm">
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back to Runs
+        </Button>
+      </Link>
 
-      {/* Summary Bar */}
-      <div className="flex items-center gap-6 text-sm">
-        {run.flow && (
-          <div className="flex items-center gap-2">
-            <span className="text-muted-foreground">Flow:</span>
-            <Link href={`/flows/${run.flow.id}`} className="font-medium hover:underline">
-              {run.flow.name}
-            </Link>
+      {/* Header Card */}
+      <div className="rounded-lg border bg-card">
+        <div className="p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div>
+                <div className="flex items-center gap-3">
+                  <h1 className="text-lg font-semibold">Run</h1>
+                  <Badge variant="outline" className={`${statusCfg.bg} ${statusCfg.color}`}>
+                    {statusCfg.icon}
+                    <span className="ml-1.5 capitalize">{run.status}</span>
+                  </Badge>
+                </div>
+                <div className="flex items-center gap-2 mt-1">
+                  <code className="text-xs text-muted-foreground">{run.id}</code>
+                  <button
+                    onClick={() => copyToClipboard(run.id)}
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    <Copy className="h-3 w-3" />
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {(run.status === 'failed' || run.status === 'completed') && (
+                <Button variant="outline" size="sm" onClick={handleRetry} disabled={isRetrying}>
+                  <RefreshCw className={`mr-1.5 h-3.5 w-3.5 ${isRetrying ? 'animate-spin' : ''}`} />
+                  Rerun
+                </Button>
+              )}
+            </div>
           </div>
-        )}
-        <div className="flex items-center gap-1.5 text-muted-foreground">
-          <Clock className="h-3.5 w-3.5" />
-          <span>{formatDistanceToNow(new Date(run.created_at), { addSuffix: true })}</span>
+
+          <Separator className="my-4" />
+
+          {/* Stats Row */}
+          <div className="flex items-center gap-6 text-sm">
+            {run.flow && (
+              <div className="flex items-center gap-2">
+                <span className="text-muted-foreground">Flow:</span>
+                <Link href={`/flows/${run.flow.id}`} className="font-medium hover:underline">
+                  {run.flow.name}
+                </Link>
+              </div>
+            )}
+            <div className="flex items-center gap-1.5 text-muted-foreground">
+              <Clock className="h-3.5 w-3.5" />
+              <span>{formatDistanceToNow(new Date(run.created_at), { addSuffix: true })}</span>
+            </div>
+            {totalTokens > 0 && (
+              <div className="flex items-center gap-1.5 text-muted-foreground">
+                <Zap className="h-3.5 w-3.5" />
+                <span>{totalTokens.toLocaleString()} tokens</span>
+              </div>
+            )}
+            {totalCost > 0 && (
+              <div className="flex items-center gap-1.5 text-muted-foreground">
+                <DollarSign className="h-3.5 w-3.5" />
+                <span>${totalCost.toFixed(4)}</span>
+              </div>
+            )}
+          </div>
         </div>
-        {totalTokens > 0 && (
-          <div className="flex items-center gap-1.5 text-muted-foreground">
-            <Zap className="h-3.5 w-3.5" />
-            <span>{totalTokens.toLocaleString()} tokens</span>
-          </div>
-        )}
-        {totalCost > 0 && (
-          <div className="text-muted-foreground">
-            <span>${totalCost.toFixed(4)}</span>
-          </div>
-        )}
       </div>
 
       {/* Input Section */}
@@ -276,26 +301,41 @@ export function RunDetail({ run: initialRun }: RunDetailProps) {
           <div className="p-4 space-y-4">
             {run.attachment_urls && run.attachment_urls.length > 0 && (
               <div className="flex gap-3">
-                {run.attachment_urls.map((url, i) => (
-                  <a
-                    key={i}
-                    href={url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="relative block h-20 w-20 overflow-hidden rounded-md border bg-muted hover:opacity-80 transition-opacity"
-                  >
-                    <img
-                      src={url}
-                      alt={`Input ${i + 1}`}
-                      className="h-full w-full object-cover"
-                    />
-                    {i === 0 && run.attachment_urls.length > 1 && (
-                      <span className="absolute bottom-1 left-1 rounded bg-black/70 px-1 py-0.5 text-[10px] font-medium text-white">
-                        Primary
-                      </span>
-                    )}
-                  </a>
-                ))}
+                {run.attachment_urls.map((url, i) => {
+                  // Check if this attachment has a corresponding media ID
+                  const mediaId = run.input_media_ids?.[i];
+                  const mediaItem = run.input_media?.find(m => m.id === mediaId);
+
+                  return (
+                    <div key={i} className="relative group">
+                      <a
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="relative block h-20 w-20 overflow-hidden rounded-md border bg-muted hover:opacity-80 transition-opacity"
+                      >
+                        <img
+                          src={url}
+                          alt={`Input ${i + 1}`}
+                          className="h-full w-full object-cover"
+                        />
+                        {i === 0 && run.attachment_urls.length > 1 && (
+                          <span className="absolute bottom-1 left-1 rounded bg-black/70 px-1 py-0.5 text-[10px] font-medium text-white">
+                            Primary
+                          </span>
+                        )}
+                      </a>
+                      {mediaId && (
+                        <Link
+                          href={`/library/${mediaId}`}
+                          className="absolute -bottom-1 -right-1 rounded bg-primary px-1.5 py-0.5 text-[8px] font-medium text-primary-foreground opacity-0 group-hover:opacity-100 transition-opacity hover:bg-primary/90"
+                        >
+                          Library
+                        </Link>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
             {run.message && (
@@ -324,176 +364,200 @@ export function RunDetail({ run: initialRun }: RunDetailProps) {
         </h2>
 
         {run.prompt_runs && run.prompt_runs.length > 0 ? (
-          <div className="space-y-3">
+          <div className="space-y-2">
             {run.prompt_runs.map((pr, index) => {
               const stepStatus = statusConfig[pr.status as RunStatus] || statusConfig.pending;
               const hasPrompt = pr.prompt?.system_prompt || pr.prompt?.background_prompt || pr.prompt?.foreground_prompt;
+              const isOpen = openSteps[pr.id] || false;
 
               return (
-                <div key={pr.id} className="rounded-lg border bg-card overflow-hidden">
-                  {/* Step Header */}
-                  <div className="px-4 py-3 border-b bg-muted/30 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className={`flex items-center justify-center h-6 w-6 rounded-full text-xs font-medium ${stepStatus.bg} ${stepStatus.color}`}>
-                        {pr.status === 'pending' ? (
-                          <Loader2 className="h-3 w-3 animate-spin" />
-                        ) : pr.status === 'completed' ? (
-                          <CheckCircle2 className="h-3.5 w-3.5" />
-                        ) : (
-                          index + 1
-                        )}
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium">
-                            {pr.prompt?.endpoint_type || 'Step ' + (index + 1)}
-                          </span>
-                          <Badge variant="secondary" className="text-xs h-5 gap-1">
-                            {endpointIcons[pr.prompt?.endpoint_type || '']}
-                            {pr.prompt?.selected_provider}
-                          </Badge>
-                        </div>
-                        <p className="text-xs text-muted-foreground">{pr.prompt?.selected_model}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                      {pr.total_tokens && (
-                        <span className="font-mono">{pr.total_tokens.toLocaleString()} tokens</span>
-                      )}
-                      <Badge variant="outline" className={`${stepStatus.bg} ${stepStatus.color} text-xs`}>
-                        {pr.status}
-                      </Badge>
-                    </div>
-                  </div>
-
-                  {/* Step Content */}
-                  <div className="p-4 space-y-4">
-                    {/* Prompt */}
-                    {hasPrompt && (
-                      <div>
-                        <div className="flex items-center justify-between mb-2">
-                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Prompt</p>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 text-xs"
-                            onClick={() => copyToClipboard(
-                              pr.prompt?.system_prompt ||
-                              [pr.prompt?.background_prompt, pr.prompt?.foreground_prompt, pr.prompt?.negative_prompt].filter(Boolean).join('\n\n') ||
-                              ''
+                <Collapsible key={pr.id} open={isOpen} onOpenChange={() => toggleStep(pr.id)}>
+                  <div className="rounded-lg border bg-card overflow-hidden">
+                    {/* Step Header - Clickable */}
+                    <CollapsibleTrigger asChild>
+                      <button className="w-full px-4 py-3 flex items-center justify-between hover:bg-muted/50 transition-colors">
+                        <div className="flex items-center gap-3">
+                          <div className={`flex items-center justify-center h-6 w-6 rounded-full text-xs font-medium ${stepStatus.bg} ${stepStatus.color}`}>
+                            {pr.status === 'pending' ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : pr.status === 'completed' ? (
+                              <CheckCircle2 className="h-3.5 w-3.5" />
+                            ) : pr.status === 'failed' ? (
+                              <XCircle className="h-3.5 w-3.5" />
+                            ) : (
+                              index + 1
                             )}
-                          >
-                            <Copy className="h-3 w-3 mr-1" />
-                            Copy
-                          </Button>
+                          </div>
+                          <div className="text-left">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium">
+                                {pr.prompt?.endpoint_type || 'Step ' + (index + 1)}
+                              </span>
+                              <Badge variant="secondary" className="text-xs h-5 gap-1">
+                                {endpointIcons[pr.prompt?.endpoint_type || '']}
+                                {pr.prompt?.selected_provider}
+                              </Badge>
+                            </div>
+                            <p className="text-xs text-muted-foreground">{pr.prompt?.selected_model}</p>
+                          </div>
                         </div>
-                        <div className="rounded-md bg-muted/50 border">
-                          {pr.prompt?.system_prompt && (
-                            <pre className="p-3 text-sm whitespace-pre-wrap font-mono text-xs leading-relaxed">
-                              {pr.prompt.system_prompt}
-                            </pre>
+                        <div className="flex items-center gap-3">
+                          {pr.total_tokens && (
+                            <span className="text-xs text-muted-foreground font-mono">
+                              {pr.total_tokens.toLocaleString()} tokens
+                            </span>
                           )}
-                          {(pr.prompt?.background_prompt || pr.prompt?.foreground_prompt || pr.prompt?.negative_prompt) && (
-                            <div className="p-3 space-y-2 text-sm">
-                              {pr.prompt.background_prompt && (
-                                <div>
-                                  <span className="text-xs text-muted-foreground">Background: </span>
-                                  <span className="text-xs">{pr.prompt.background_prompt}</span>
-                                </div>
-                              )}
-                              {pr.prompt.foreground_prompt && (
-                                <div>
-                                  <span className="text-xs text-muted-foreground">Foreground: </span>
-                                  <span className="text-xs">{pr.prompt.foreground_prompt}</span>
-                                </div>
-                              )}
-                              {pr.prompt.negative_prompt && (
-                                <div>
-                                  <span className="text-xs text-muted-foreground">Negative: </span>
-                                  <span className="text-xs">{pr.prompt.negative_prompt}</span>
-                                </div>
-                              )}
-                            </div>
-                          )}
+                          <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${isOpen ? 'rotate-180' : ''}`} />
                         </div>
-                      </div>
-                    )}
+                      </button>
+                    </CollapsibleTrigger>
 
-                    {/* Input/Output Row */}
-                    {(pr.source_attachment_urls?.length > 0 || pr.attachment_urls?.length > 0) && (
-                      <div className="flex items-start gap-6">
-                        {pr.source_attachment_urls && pr.source_attachment_urls.length > 0 && (
+                    {/* Step Content - Collapsible */}
+                    <CollapsibleContent>
+                      <div className="px-4 pb-4 pt-2 border-t space-y-4">
+                        {/* Prompt */}
+                        {hasPrompt && (
                           <div>
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Input</p>
-                            <div className="flex gap-2">
-                              {pr.source_attachment_urls.map((url, i) => (
-                                <a
-                                  key={i}
-                                  href={url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="block h-16 w-16 overflow-hidden rounded border bg-muted hover:opacity-80 transition-opacity"
-                                >
-                                  <img src={url} alt="" className="h-full w-full object-cover" />
-                                </a>
-                              ))}
+                            <div className="flex items-center justify-between mb-2">
+                              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Prompt</p>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 text-xs"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  copyToClipboard(
+                                    pr.prompt?.system_prompt ||
+                                    [pr.prompt?.background_prompt, pr.prompt?.foreground_prompt, pr.prompt?.negative_prompt].filter(Boolean).join('\n\n') ||
+                                    ''
+                                  );
+                                }}
+                              >
+                                <Copy className="h-3 w-3 mr-1" />
+                                Copy
+                              </Button>
+                            </div>
+                            <div className="rounded-md bg-muted/50 border">
+                              {pr.prompt?.system_prompt && (
+                                <pre className="p-3 whitespace-pre-wrap font-mono text-xs leading-relaxed">
+                                  {pr.prompt.system_prompt}
+                                </pre>
+                              )}
+                              {(pr.prompt?.background_prompt || pr.prompt?.foreground_prompt || pr.prompt?.negative_prompt) && (
+                                <div className="p-3 space-y-2">
+                                  {pr.prompt.background_prompt && (
+                                    <div>
+                                      <span className="text-xs text-muted-foreground">Background: </span>
+                                      <span className="text-xs">{pr.prompt.background_prompt}</span>
+                                    </div>
+                                  )}
+                                  {pr.prompt.foreground_prompt && (
+                                    <div>
+                                      <span className="text-xs text-muted-foreground">Foreground: </span>
+                                      <span className="text-xs">{pr.prompt.foreground_prompt}</span>
+                                    </div>
+                                  )}
+                                  {pr.prompt.negative_prompt && (
+                                    <div>
+                                      <span className="text-xs text-muted-foreground">Negative: </span>
+                                      <span className="text-xs">{pr.prompt.negative_prompt}</span>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           </div>
                         )}
 
-                        {pr.source_attachment_urls?.length > 0 && pr.attachment_urls?.length > 0 && (
-                          <div className="flex items-center self-center pt-6">
-                            <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                        {/* Input/Output Row */}
+                        {(pr.source_attachment_urls?.length > 0 || pr.attachment_urls?.length > 0) && (
+                          <div className="flex items-start gap-6">
+                            {pr.source_attachment_urls && pr.source_attachment_urls.length > 0 && (
+                              <div>
+                                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Input</p>
+                                <div className="flex gap-2">
+                                  {pr.source_attachment_urls.map((url, i) => (
+                                    <a
+                                      key={i}
+                                      href={url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="block h-16 w-16 overflow-hidden rounded border bg-muted hover:opacity-80 transition-opacity"
+                                    >
+                                      <img src={url} alt="" className="h-full w-full object-cover" />
+                                    </a>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {pr.source_attachment_urls?.length > 0 && pr.attachment_urls?.length > 0 && (
+                              <div className="flex items-center self-center pt-6">
+                                <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                              </div>
+                            )}
+
+                            {pr.attachment_urls && pr.attachment_urls.length > 0 && (
+                              <div>
+                                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Output</p>
+                                <div className="flex gap-2">
+                                  {pr.attachment_urls.map((url, i) => {
+                                    const mediaId = pr.output_media_ids?.[i];
+                                    return (
+                                      <div key={i} className="relative group">
+                                        <a
+                                          href={url}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="block h-16 w-16 overflow-hidden rounded border bg-muted hover:opacity-80 transition-opacity"
+                                        >
+                                          <img src={url} alt="" className="h-full w-full object-cover" />
+                                        </a>
+                                        {mediaId && (
+                                          <Link
+                                            href={`/library/${mediaId}`}
+                                            className="absolute -bottom-1 -right-1 rounded bg-green-500 px-1.5 py-0.5 text-[8px] font-medium text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-green-600"
+                                          >
+                                            Library
+                                          </Link>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
                           </div>
                         )}
 
-                        {pr.attachment_urls && pr.attachment_urls.length > 0 && (
+                        {/* Response preview for chat */}
+                        {pr.response && pr.prompt?.endpoint_type === 'Chat' && (
                           <div>
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Output</p>
-                            <div className="flex gap-2">
-                              {pr.attachment_urls.map((url, i) => (
-                                <a
-                                  key={i}
-                                  href={url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="block h-16 w-16 overflow-hidden rounded border bg-muted hover:opacity-80 transition-opacity"
-                                >
-                                  <img src={url} alt="" className="h-full w-full object-cover" />
-                                </a>
-                              ))}
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Response</p>
+                            <div className="rounded-md bg-muted/50 border p-3">
+                              <pre className="text-xs whitespace-pre-wrap font-mono max-h-32 overflow-auto">
+                                {typeof pr.response === 'string'
+                                  ? pr.response
+                                  : JSON.stringify(pr.response, null, 2)}
+                              </pre>
                             </div>
                           </div>
                         )}
-                      </div>
-                    )}
 
-                    {/* Response preview for chat */}
-                    {pr.response && pr.prompt?.endpoint_type === 'Chat' && (
-                      <div>
-                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Response</p>
-                        <div className="rounded-md bg-muted/50 border p-3">
-                          <pre className="text-xs whitespace-pre-wrap font-mono max-h-32 overflow-auto">
-                            {typeof pr.response === 'string'
-                              ? pr.response
-                              : JSON.stringify(pr.response, null, 2)}
-                          </pre>
-                        </div>
+                        {/* Error message */}
+                        {pr.status === 'failed' && pr.response && (
+                          <div className="rounded-md bg-red-500/10 border border-red-500/20 p-3">
+                            <p className="text-xs text-red-600">
+                              {typeof pr.response === 'object' && 'error' in pr.response
+                                ? String(pr.response.error)
+                                : 'Step failed'}
+                            </p>
+                          </div>
+                        )}
                       </div>
-                    )}
-
-                    {/* Error message */}
-                    {pr.status === 'failed' && pr.response && (
-                      <div className="rounded-md bg-red-500/10 border border-red-500/20 p-3">
-                        <p className="text-xs text-red-600">
-                          {typeof pr.response === 'object' && 'error' in pr.response
-                            ? String(pr.response.error)
-                            : 'Step failed'}
-                        </p>
-                      </div>
-                    )}
+                    </CollapsibleContent>
                   </div>
-                </div>
+                </Collapsible>
               );
             })}
           </div>
@@ -513,7 +577,7 @@ export function RunDetail({ run: initialRun }: RunDetailProps) {
 
       {/* Final Output */}
       <div className="rounded-lg border bg-card overflow-hidden">
-        <div className="px-4 py-3 border-b bg-muted/30">
+        <div className="px-4 py-3 border-b">
           <h2 className="text-sm font-medium">Final Output</h2>
         </div>
         <div className="p-4">

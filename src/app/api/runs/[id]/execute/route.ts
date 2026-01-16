@@ -143,6 +143,9 @@ async function executePromptStep(params: {
   const { prompt, run, runId, inputImageUrl, attachmentUrls } = params;
   const supabase = createServiceClient();
 
+  // Get input media IDs from run if available
+  const inputMediaIds = (run.input_media_ids as string[]) || [];
+
   // Create prompt run record
   const { data: promptRun, error: promptRunError } = await supabase
     .from('prompt_runs')
@@ -152,6 +155,7 @@ async function executePromptStep(params: {
       status: 'pending',
       selected_provider: prompt.selected_provider,
       model: prompt.selected_model,
+      input_media_ids: inputMediaIds,
       started_at: new Date().toISOString(),
     })
     .select()
@@ -182,6 +186,7 @@ async function executePromptStep(params: {
         output_tokens: result.tokens?.output || null,
         total_tokens: result.tokens?.total || null,
         attachment_urls: result.attachmentUrls || [],
+        output_media_ids: result.outputMediaIds || [],
         completed_at: new Date().toISOString(),
       })
       .eq('id', promptRun.id);

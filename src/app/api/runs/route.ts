@@ -115,6 +115,10 @@ export async function POST(request: NextRequest) {
     attachmentUrls = [legacyInputImageUrl, ...attachmentUrls];
   }
 
+  // Get input media IDs if provided
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const inputMediaIds = (runData as any).input_media_ids || [];
+
   // Create the run
   const { data: run, error: createError } = await supabase
     .from('runs')
@@ -124,6 +128,7 @@ export async function POST(request: NextRequest) {
       webhook_url: runData.webhook_url || null,
       variables: runData.variables || {},
       attachment_urls: attachmentUrls,
+      input_media_ids: inputMediaIds,
       conversation_id: runData.conversation_id || null,
       status: 'pending',
       started_at: new Date().toISOString(),

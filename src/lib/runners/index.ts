@@ -6,6 +6,7 @@ import { runImageOpenAI } from './image/openai';
 import { runImageGemini } from './image/gemini';
 import { runImageStability } from './image/stability';
 import { runVideoGemini } from './video/gemini';
+import { db, media } from '@/lib/db';
 
 export interface RunPromptParams {
   prompt: Record<string, unknown>;
@@ -24,8 +25,10 @@ export interface RunPromptResult {
     total?: number;
   };
   outputUrl?: string;
+  outputMediaId?: string;
   outputType?: 'image' | 'video' | 'audio' | 'text';
   attachmentUrls?: string[];
+  outputMediaIds?: string[];
   text?: string;
 }
 
@@ -107,14 +110,37 @@ export function getContentTypeFromUrl(url: string): string {
   return mimeTypes[extension || ''] || 'application/octet-stream';
 }
 
-// Helper to upload file to Supabase storage
+// Generate custom ID: img_xxxxxxxx or vdo_xxxxxxxx
+function generateMediaId(type: 'image' | 'video'): string {
+  const prefix = type === 'image' ? 'img' : 'vdo';
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  let id = '';
+  for (let i = 0; i < 8; i++) {
+    id += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return `${prefix}_${id}`;
+}
+
+export interface UploadResult {
+  url: string;
+  mediaId: string;
+}
+
+// Helper to upload file to Supabase storage and create media record
 export async function uploadToStorage(
   supabase: SupabaseClient,
   buffer: Buffer,
   filename: string,
   contentType: string
-): Promise<string> {
-  const path = `outputs/${Date.now()}_${filename}`;
+): Promise<UploadResult> {
+  const isVideo = contentType.startsWith('video/');
+  const type = isVideo ? 'video' : 'image';
+  const mediaId = generateMediaId(type);
+
+  // Get file extension
+  const ext = filename.split('.').pop() || (isVideo ? 'mp4' : 'png');
+  const storageName = `${mediaId}.${ext}`;
+  const path = `library/${storageName}`;
 
   const { error } = await supabase.storage
     .from('attachments')
@@ -131,5 +157,17 @@ export async function uploadToStorage(
     .from('attachments')
     .getPublicUrl(path);
 
-  return publicUrl.publicUrl;
+  const url = publicUrl.publicUrl;
+
+  // Create media record in database
+  await db.insert(media).values({
+    id: mediaId,
+    type,
+    filename,
+    url,
+    mimeType: contentType,
+    size: buffer.length,
+  });
+
+  return { url, mediaId };
 }
