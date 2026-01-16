@@ -397,6 +397,16 @@ export function RunDetail({ run: initialRun }: RunDetailProps) {
                                 {endpointIcons[pr.prompt?.endpoint_type || '']}
                                 {pr.prompt?.selected_provider}
                               </Badge>
+                              {run.flow?.id && pr.prompt?.id && (
+                                <Link
+                                  href={`/flows/${run.flow.id}`}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="text-muted-foreground hover:text-foreground"
+                                  title="View prompt in flow"
+                                >
+                                  <ExternalLink className="h-3 w-3" />
+                                </Link>
+                              )}
                             </div>
                             <p className="text-xs text-muted-foreground">{pr.prompt?.selected_model}</p>
                           </div>
