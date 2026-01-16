@@ -54,20 +54,29 @@ npm run dev  # Runs on port 3002
 
 ## Database
 
-Uses Drizzle ORM with Supabase PostgreSQL.
+Uses Drizzle ORM with Supabase PostgreSQL. **Migrations run automatically on deploy** as part of the build process.
 
 ```bash
-# Push schema changes to database
-npm run db:push
+# Run migrations locally
+npm run db:migrate:local
+
+# Run migrations (used in build, requires DATABASE_URL env var)
+npm run db:migrate
 
 # Open Drizzle Studio to view/edit data
 npm run db:studio
 
-# Generate migrations
+# Generate migrations (creates SQL files in drizzle/migrations/)
 npm run db:generate
 ```
 
-Schema is defined in `src/lib/db/schema.ts`.
+### Adding Schema Changes
+
+1. Update schema in `src/lib/db/schema.ts`
+2. Create a new migration file in `drizzle/migrations/` (e.g., `0002_add_new_column.sql`)
+3. Commit and push - migrations run automatically on Vercel deploy
+
+Migration files are in `drizzle/migrations/` and run in alphabetical order.
 
 ## Architecture
 
