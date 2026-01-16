@@ -28,6 +28,10 @@ NEXT_PUBLIC_SUPABASE_URL=<supabase-url>
 NEXT_PUBLIC_SUPABASE_ANON_KEY=<supabase-anon-key>
 SUPABASE_SERVICE_ROLE_KEY=<supabase-service-role-key>
 
+# Database (Prisma)
+DATABASE_URL=<pooled-connection-string>
+DIRECT_URL=<direct-connection-string>
+
 # AI Providers
 OPENAI_API_KEY=<openai-key>
 ANTHROPIC_API_KEY=<anthropic-key>
@@ -48,6 +52,26 @@ GOOGLE_AI_API_KEY=<google-ai-key>
 npm install
 npm run dev  # Runs on port 3002
 ```
+
+## Database
+
+Uses Prisma for schema management with Supabase PostgreSQL.
+
+```bash
+# Push schema changes to database
+npm run db:push
+
+# Open Prisma Studio to view/edit data
+npm run db:studio
+
+# Introspect existing database (pull schema from db)
+npx prisma db pull
+
+# Generate Prisma Client after schema changes
+npx prisma generate
+```
+
+Schema is defined in `prisma/schema.prisma`.
 
 ## Architecture
 

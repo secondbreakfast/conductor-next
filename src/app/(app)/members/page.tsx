@@ -1,4 +1,4 @@
-import { createServiceClient } from '@/lib/supabase/server';
+import { prisma } from '@/lib/prisma';
 import { formatDistanceToNow } from 'date-fns';
 import {
   Table,
@@ -11,28 +11,16 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 
-interface User {
-  id: string;
-  email: string;
-  name: string | null;
-  image: string | null;
-  created_at: string;
-  last_login_at: string | null;
-}
-
-async function getUsers(): Promise<User[]> {
-  const supabase = createServiceClient();
-  const { data, error } = await supabase
-    .from('users')
-    .select('*')
-    .order('last_login_at', { ascending: false });
-
-  if (error) {
+async function getUsers() {
+  try {
+    const users = await prisma.user.findMany({
+      orderBy: { lastLoginAt: 'desc' },
+    });
+    return users;
+  } catch (error) {
     console.error('Error fetching users:', error);
     return [];
   }
-
-  return data || [];
 }
 
 function getInitials(name: string | null): string {
@@ -94,14 +82,18 @@ export default async function MembersPage() {
                   </TableCell>
                   <TableCell>{user.email}</TableCell>
                   <TableCell className="text-muted-foreground">
-                    {formatDistanceToNow(new Date(user.created_at), {
-                      addSuffix: true,
-                    })}
+                    {user.createdAt ? (
+                      formatDistanceToNow(new Date(user.createdAt), {
+                        addSuffix: true,
+                      })
+                    ) : (
+                      <span>—</span>
+                    )}
                   </TableCell>
                   <TableCell>
-                    {user.last_login_at ? (
+                    {user.lastLoginAt ? (
                       <Badge variant="outline" className="font-normal">
-                        {formatDistanceToNow(new Date(user.last_login_at), {
+                        {formatDistanceToNow(new Date(user.lastLoginAt), {
                           addSuffix: true,
                         })}
                       </Badge>
