@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
+import Link from 'next/link';
 import { useDropzone } from 'react-dropzone';
 import { Upload, Image as ImageIcon, Film, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -143,23 +144,24 @@ export default function LibraryPage() {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+          <div className="grid grid-cols-2 gap-6 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
             {media.map((item) => (
-              <div
+              <Link
                 key={item.id}
-                className="group relative aspect-square overflow-hidden rounded-lg bg-muted"
+                href={`/library/${item.id}`}
+                className="group relative aspect-square flex items-center justify-center rounded-lg bg-muted/50 p-3 transition-all hover:bg-muted"
               >
                 {item.type === 'image' ? (
                   <img
                     src={item.url}
                     alt={item.filename}
-                    className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                    className="max-h-full max-w-full object-contain rounded shadow-md transition-transform group-hover:scale-105"
                   />
                 ) : (
-                  <div className="relative h-full w-full">
+                  <div className="relative max-h-full max-w-full">
                     <video
                       src={item.url}
-                      className="h-full w-full object-cover"
+                      className="max-h-full max-w-full object-contain rounded shadow-md"
                       muted
                       playsInline
                       onMouseEnter={(e) => e.currentTarget.play()}
@@ -173,13 +175,13 @@ export default function LibraryPage() {
                     </div>
                   </div>
                 )}
-                {/* Overlay with ID */}
-                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent p-2 opacity-0 transition-opacity group-hover:opacity-100">
-                  <p className="truncate text-xs font-medium text-white">
+                {/* ID label */}
+                <div className="absolute inset-x-0 bottom-0 p-2 text-center opacity-0 transition-opacity group-hover:opacity-100">
+                  <span className="inline-block rounded bg-black/60 px-2 py-0.5 text-xs font-medium text-white">
                     {item.id}
-                  </p>
+                  </span>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         )}
