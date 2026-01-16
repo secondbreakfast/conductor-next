@@ -1,4 +1,5 @@
-import { prisma } from '@/lib/prisma';
+import { db, users } from '@/lib/db';
+import { desc } from 'drizzle-orm';
 import { formatDistanceToNow } from 'date-fns';
 import {
   Table,
@@ -13,10 +14,10 @@ import { Badge } from '@/components/ui/badge';
 
 async function getUsers() {
   try {
-    const users = await prisma.user.findMany({
-      orderBy: { lastLoginAt: 'desc' },
-    });
-    return users;
+    return await db
+      .select()
+      .from(users)
+      .orderBy(desc(users.lastLoginAt));
   } catch (error) {
     console.error('Error fetching users:', error);
     return [];
@@ -34,7 +35,7 @@ function getInitials(name: string | null): string {
 }
 
 export default async function MembersPage() {
-  const users = await getUsers();
+  const allUsers = await getUsers();
 
   return (
     <div className="p-8">
@@ -45,7 +46,7 @@ export default async function MembersPage() {
         </p>
       </div>
 
-      {users.length === 0 ? (
+      {allUsers.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-lg border border-dashed p-12">
           <p className="text-lg font-medium">No members yet</p>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -65,7 +66,7 @@ export default async function MembersPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {users.map((user) => (
+              {allUsers.map((user) => (
                 <TableRow key={user.id}>
                   <TableCell>
                     <Avatar className="h-8 w-8">
