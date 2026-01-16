@@ -27,7 +27,6 @@ const navigation = [
   { name: 'Analytics', href: '/analytics', icon: BarChart3 },
   { name: 'Runs', href: '/runs', icon: Play },
   { name: 'Flows', href: '/flows', icon: Workflow },
-  { name: 'Settings', href: '/settings', icon: Settings },
 ];
 
 export function Sidebar() {
@@ -103,6 +102,12 @@ export function Sidebar() {
                   <Link href="/members" className="cursor-pointer">
                     <Users className="mr-2 h-4 w-4" />
                     Members
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/settings" className="cursor-pointer">
+                    <Settings className="mr-2 h-4 w-4" />
+                    Settings
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
