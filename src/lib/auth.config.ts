@@ -86,6 +86,7 @@ export const authConfig: NextAuthConfig = {
         '/api/flows',
         '/api/prompts',
         '/api/upload',
+        '/api/models',
       ];
 
       const isPublicRoute = publicRoutes.some(
