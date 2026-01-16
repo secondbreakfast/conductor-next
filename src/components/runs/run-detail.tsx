@@ -97,6 +97,32 @@ export function RunDetail({ run: initialRun }: RunDetailProps) {
   useEffect(() => {
     const supabase = createClient();
 
+    // Helper to refetch prompt_runs with full data
+    const refetchPromptRuns = async () => {
+      const { data: promptRuns } = await supabase
+        .from('prompt_runs')
+        .select(`
+          *,
+          prompt:prompts(
+            id,
+            endpoint_type,
+            selected_provider,
+            selected_model,
+            system_prompt,
+            background_prompt,
+            foreground_prompt,
+            negative_prompt,
+            tools
+          )
+        `)
+        .eq('run_id', run.id)
+        .order('created_at', { ascending: true });
+
+      if (promptRuns) {
+        setRun((prev) => ({ ...prev, prompt_runs: promptRuns }));
+      }
+    };
+
     const runChannel = supabase
       .channel(`run-${run.id}`)
       .on(
@@ -109,6 +135,8 @@ export function RunDetail({ run: initialRun }: RunDetailProps) {
         },
         (payload) => {
           setRun((prev) => ({ ...prev, ...payload.new }));
+          // Also refetch prompt_runs when run updates
+          refetchPromptRuns();
         }
       )
       .subscribe();
@@ -123,29 +151,8 @@ export function RunDetail({ run: initialRun }: RunDetailProps) {
           table: 'prompt_runs',
           filter: `run_id=eq.${run.id}`,
         },
-        async () => {
-          const { data: promptRuns } = await supabase
-            .from('prompt_runs')
-            .select(`
-              *,
-              prompt:prompts(
-                id,
-                endpoint_type,
-                selected_provider,
-                selected_model,
-                system_prompt,
-                background_prompt,
-                foreground_prompt,
-                negative_prompt,
-                tools
-              )
-            `)
-            .eq('run_id', run.id)
-            .order('created_at', { ascending: true });
-
-          if (promptRuns) {
-            setRun((prev) => ({ ...prev, prompt_runs: promptRuns }));
-          }
+        () => {
+          refetchPromptRuns();
         }
       )
       .subscribe();
