@@ -91,6 +91,24 @@ export const runs = pgTable('runs', {
   index('idx_runs_created_at').on(table.createdAt),
 ]);
 
+// Media table (library)
+export const media = pgTable('media', {
+  id: text('id').primaryKey(), // img_xxxxxxxx or vdo_xxxxxxxx
+  type: text('type').notNull(), // 'image' or 'video'
+  filename: text('filename').notNull(),
+  url: text('url').notNull(),
+  mimeType: text('mime_type'),
+  size: integer('size'), // bytes
+  width: integer('width'),
+  height: integer('height'),
+  duration: real('duration'), // seconds, for videos
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+}, (table) => [
+  index('idx_media_type').on(table.type),
+  index('idx_media_created_at').on(table.createdAt),
+]);
+
 // Relations
 export const flowsRelations = relations(flows, ({ many }) => ({
   prompts: many(prompts),
@@ -117,3 +135,5 @@ export type NewUser = typeof users.$inferInsert;
 export type Flow = typeof flows.$inferSelect;
 export type Prompt = typeof prompts.$inferSelect;
 export type Run = typeof runs.$inferSelect;
+export type Media = typeof media.$inferSelect;
+export type NewMedia = typeof media.$inferInsert;

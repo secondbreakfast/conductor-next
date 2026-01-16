@@ -13,6 +13,7 @@ import {
   Users,
   LogOut,
   ChevronUp,
+  Image,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -25,6 +26,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 const navigation = [
   { name: 'Analytics', href: '/analytics', icon: BarChart3 },
+  { name: 'Library', href: '/library', icon: Image },
   { name: 'Runs', href: '/runs', icon: Play },
   { name: 'Flows', href: '/flows', icon: Workflow },
 ];
