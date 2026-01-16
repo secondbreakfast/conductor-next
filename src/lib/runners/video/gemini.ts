@@ -41,6 +41,7 @@ export async function runVideoGemini(params: RunPromptParams): Promise<RunPrompt
   );
 
   const model = (prompt.selected_model as string) || 'veo-3.0-generate-001';
+  const videoDuration = (prompt.video_duration as number) || 8; // Default to 8 seconds (valid options: 4, 6, 8)
 
   // Download and encode input image
   const imageBase64 = await imageUrlToBase64(inputImageUrl);
@@ -61,8 +62,7 @@ export async function runVideoGemini(params: RunPromptParams): Promise<RunPrompt
     ],
     parameters: {
       sampleCount: 1,
-      durationSeconds: 5,
-      // Enhanced audio generation if available
+      durationSeconds: videoDuration,
       includeRaiReason: true,
     },
   };

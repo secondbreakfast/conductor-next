@@ -65,6 +65,7 @@ export function PromptCard({ prompt, index, onDelete }: PromptCardProps) {
     foreground_prompt: prompt.foreground_prompt || '',
     negative_prompt: prompt.negative_prompt || '',
     tools: JSON.stringify(prompt.tools || [], null, 2),
+    video_duration: prompt.video_duration || 8,
   });
 
   const handleSave = async () => {
@@ -92,6 +93,7 @@ export function PromptCard({ prompt, index, onDelete }: PromptCardProps) {
             foreground_prompt: formData.foreground_prompt || null,
             negative_prompt: formData.negative_prompt || null,
             tools,
+            video_duration: formData.endpoint_type === 'ImageToVideo' ? formData.video_duration : null,
           },
         }),
       });
@@ -315,6 +317,28 @@ export function PromptCard({ prompt, index, onDelete }: PromptCardProps) {
                   </div>
                 )}
 
+                {/* Video duration for ImageToVideo */}
+                {formData.endpoint_type === 'ImageToVideo' && (
+                  <div className="space-y-2">
+                    <Label>Video Duration</Label>
+                    <Select
+                      value={String(formData.video_duration)}
+                      onValueChange={(value) =>
+                        setFormData((prev) => ({ ...prev, video_duration: Number(value) }))
+                      }
+                    >
+                      <SelectTrigger className="w-[180px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="4">4 seconds</SelectItem>
+                        <SelectItem value="6">6 seconds</SelectItem>
+                        <SelectItem value="8">8 seconds</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
                 {/* Stability - show background/foreground/negative prompts */}
                 {(formData.endpoint_type === 'ImageToImage' ||
                   formData.endpoint_type === 'ImageToVideo') &&
@@ -418,6 +442,15 @@ export function PromptCard({ prompt, index, onDelete }: PromptCardProps) {
                       <pre className="text-xs">
                         {JSON.stringify(prompt.tools, null, 2)}
                       </pre>
+                    </div>
+                  </div>
+                )}
+
+                {prompt.endpoint_type === 'ImageToVideo' && prompt.video_duration && (
+                  <div>
+                    <p className="mb-1 text-sm font-medium">Video Duration</p>
+                    <div className="rounded-lg bg-muted p-2">
+                      <p className="text-sm">{prompt.video_duration} seconds</p>
                     </div>
                   </div>
                 )}

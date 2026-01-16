@@ -83,6 +83,8 @@ export interface Prompt {
   output_format: string | null;
   size: string | null;
   quality: string | null;
+  // Video configuration
+  video_duration: number | null;
   // Attachments (stored as URLs in Supabase)
   subject_image_url: string | null;
   background_reference_url: string | null;

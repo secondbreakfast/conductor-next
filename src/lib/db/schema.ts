@@ -57,6 +57,7 @@ export const prompts = pgTable('prompts', {
   outputFormat: text('output_format'),
   size: text('size'),
   quality: text('quality'),
+  videoDuration: integer('video_duration'), // seconds - for video generation (4, 6, or 8)
   subjectImageUrl: text('subject_image_url'),
   backgroundReferenceUrl: text('background_reference_url'),
   attachmentUrls: json('attachment_urls').default([]),

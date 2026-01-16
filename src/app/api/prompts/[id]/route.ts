@@ -95,6 +95,7 @@ async function updatePrompt(
     'output_format',
     'size',
     'quality',
+    'video_duration',
     'subject_image_url',
     'background_reference_url',
     'attachment_urls',
