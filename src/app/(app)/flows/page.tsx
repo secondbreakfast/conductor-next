@@ -1,34 +1,48 @@
-import { createClient } from '@/lib/supabase/server';
+import { prisma } from '@/lib/prisma';
 import { Header } from '@/components/layout/header';
-import { FlowsGrid } from '@/components/flows/flows-grid';
+import { FlowsTable } from '@/components/flows/flows-table';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 import Link from 'next/link';
 
+export const dynamic = 'force-dynamic';
+
 export default async function FlowsPage() {
-  const supabase = await createClient();
+  const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
-  const { data: flows, error } = await supabase
-    .from('flows')
-    .select(
-      `
-      *,
-      prompts(count),
-      runs(count)
-    `
-    )
-    .order('created_at', { ascending: false });
+  const flows = await prisma.flows.findMany({
+    orderBy: { created_at: 'desc' },
+    include: {
+      prompts: true,
+      runs: {
+        where: {
+          created_at: {
+            gte: twentyFourHoursAgo,
+          },
+        },
+        select: {
+          status: true,
+        },
+      },
+    },
+  });
 
-  // Transform to add counts
-  const transformedFlows = flows?.map((flow) => ({
-    ...flow,
-    prompts_count: Array.isArray(flow.prompts)
-      ? flow.prompts.length
-      : (flow.prompts as { count: number })?.count || 0,
-    runs_count: Array.isArray(flow.runs)
-      ? flow.runs.length
-      : (flow.runs as { count: number })?.count || 0,
-  }));
+  const transformedFlows = flows.map((flow) => {
+    const runs24h = flow.runs;
+    const successful24h = runs24h.filter((r) => r.status === 'completed').length;
+    const errors24h = runs24h.filter((r) => r.status === 'failed').length;
+
+    return {
+      id: flow.id,
+      name: flow.name,
+      description: flow.description,
+      created_at: flow.created_at?.toISOString() || new Date().toISOString(),
+      prompts_count: flow.prompts.length,
+      runs_24h: runs24h.length,
+      successful_24h: successful24h,
+      errors_24h: errors24h,
+    };
+  });
 
   return (
     <div className="flex flex-col">
@@ -48,13 +62,7 @@ export default async function FlowsPage() {
           </Link>
         </div>
 
-        {error ? (
-          <div className="rounded-lg border border-destructive bg-destructive/10 p-4">
-            <p className="text-destructive">Error loading flows: {error.message}</p>
-          </div>
-        ) : (
-          <FlowsGrid flows={transformedFlows || []} />
-        )}
+        <FlowsTable flows={transformedFlows} />
       </div>
     </div>
   );
