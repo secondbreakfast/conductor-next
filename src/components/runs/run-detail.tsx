@@ -258,12 +258,10 @@ export function RunDetail({ run: initialRun }: RunDetailProps) {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              {(run.status === 'failed' || run.status === 'completed') && (
-                <Button variant="outline" size="sm" onClick={handleRetry} disabled={isRetrying}>
-                  <RefreshCw className={`mr-1.5 h-3.5 w-3.5 ${isRetrying ? 'animate-spin' : ''}`} />
-                  Rerun
-                </Button>
-              )}
+              <Button variant="outline" size="sm" onClick={handleRetry} disabled={isRetrying}>
+                <RefreshCw className={`mr-1.5 h-3.5 w-3.5 ${isRetrying ? 'animate-spin' : ''}`} />
+                Rerun
+              </Button>
             </div>
           </div>
 
