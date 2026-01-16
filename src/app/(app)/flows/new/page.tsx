@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { generateSlug } from '@/lib/slug';
+import { generateSlug, sanitizeSlugInput } from '@/lib/slug';
 import Link from 'next/link';
 import { Header } from '@/components/layout/header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -21,11 +21,12 @@ export default function NewFlowPage() {
   const [slug, setSlug] = useState('');
   const [slugTouched, setSlugTouched] = useState(false);
 
+  const trimmedName = name.trim();
   useEffect(() => {
-    if (!slugTouched && name.trim()) {
-      setSlug(generateSlug(name));
+    if (!slugTouched && trimmedName) {
+      setSlug(generateSlug(trimmedName));
     }
-  }, [name, slugTouched]);
+  }, [trimmedName, slugTouched]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -117,7 +118,7 @@ export default function NewFlowPage() {
                     id="slug"
                     value={slug}
                     onChange={(e) => {
-                      setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''));
+                      setSlug(sanitizeSlugInput(e.target.value));
                       setSlugTouched(true);
                     }}
                     placeholder="my-flow-name"

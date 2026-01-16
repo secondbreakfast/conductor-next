@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { generateSlug } from '@/lib/slug';
+import { generateSlug, sanitizeSlugInput } from '@/lib/slug';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -35,7 +35,6 @@ export function FlowDetail({ flow }: FlowDetailProps) {
   const [name, setName] = useState(flow.name);
   const [description, setDescription] = useState(flow.description || '');
   const [slug, setSlug] = useState(flow.slug || '');
-  const [slugTouched, setSlugTouched] = useState(!!flow.slug);
   const [showSlugWarning, setShowSlugWarning] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [showNewPrompt, setShowNewPrompt] = useState(false);
@@ -120,14 +119,9 @@ export function FlowDetail({ flow }: FlowDetailProps) {
                     id="slug"
                     value={slug}
                     onChange={(e) => {
-                      const newSlug = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '');
+                      const newSlug = sanitizeSlugInput(e.target.value);
                       setSlug(newSlug);
-                      setSlugTouched(true);
-                      if (flow.slug && newSlug !== flow.slug) {
-                        setShowSlugWarning(true);
-                      } else {
-                        setShowSlugWarning(false);
-                      }
+                      setShowSlugWarning(flow.slug ? newSlug !== flow.slug : false);
                     }}
                     placeholder="my-flow-name"
                     className="mt-1"
@@ -158,7 +152,6 @@ export function FlowDetail({ flow }: FlowDetailProps) {
                     setName(flow.name);
                     setDescription(flow.description || '');
                     setSlug(flow.slug || '');
-                    setSlugTouched(!!flow.slug);
                     setShowSlugWarning(false);
                     setIsEditing(false);
                   }}
@@ -177,7 +170,6 @@ export function FlowDetail({ flow }: FlowDetailProps) {
                   setIsEditing(true);
                   if (!flow.slug && flow.name) {
                     setSlug(generateSlug(flow.name));
-                    setSlugTouched(false);
                   }
                 }}>
                   <Edit className="mr-2 h-4 w-4" />
