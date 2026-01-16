@@ -1,10 +1,14 @@
 'use client';
 
+import { useState } from 'react';
 import { signIn } from 'next-auth/react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
+
+const isDev = process.env.NODE_ENV === 'development';
 
 function GoogleIcon({ className }: { className?: string }) {
   return (
@@ -29,10 +33,54 @@ function GoogleIcon({ className }: { className?: string }) {
   );
 }
 
+function DevSignIn({ callbackUrl, error }: { callbackUrl: string; error: string | null }) {
+  const [email, setEmail] = useState('dev@owner.com');
+
+  const handleDevSignIn = () => {
+    signIn('dev-credentials', { email, callbackUrl });
+  };
+
+  return (
+    <Card className="w-full max-w-md">
+      <CardHeader className="text-center">
+        <CardTitle className="text-2xl">Dev Sign In</CardTitle>
+        <CardDescription>
+          Development mode - Google OAuth not configured
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {error && (
+          <div className="p-3 text-sm text-destructive bg-destructive/10 rounded-md">
+            {error === 'CredentialsSignin'
+              ? 'Invalid credentials. Email must end with @owner.com'
+              : 'An error occurred during sign in.'}
+          </div>
+        )}
+        <Input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="dev@owner.com"
+        />
+        <Button onClick={handleDevSignIn} className="w-full" size="lg">
+          Sign in as Dev User
+        </Button>
+        <p className="text-xs text-center text-muted-foreground">
+          Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to enable Google OAuth
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
+
 function SignInContent() {
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get('callbackUrl') || '/';
   const error = searchParams.get('error');
+
+  if (isDev && !process.env.NEXT_PUBLIC_HAS_GOOGLE_OAUTH) {
+    return <DevSignIn callbackUrl={callbackUrl} error={error} />;
+  }
 
   return (
     <Card className="w-full max-w-md">
