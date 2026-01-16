@@ -15,11 +15,23 @@ export const slugSchema = z
   .refine((slug) => !RESERVED_SLUGS.has(slug), { message: 'This slug is reserved' })
   .refine((slug) => !UUID_REGEX.test(slug), { message: 'Slug cannot look like a UUID' });
 
+function generateSuffix(length: number = 4): string {
+  let suffix = '';
+  while (suffix.length < length) {
+    suffix += Math.random().toString(36).substring(2);
+  }
+  return suffix.substring(0, length);
+}
+
+export function sanitizeSlugInput(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9-]/g, '');
+}
+
 export function generateSlug(name: string): string {
   let slug = slugify(name, { lower: true, strict: true });
 
   if (slug.length < MIN_SLUG_LENGTH) {
-    const suffix = Math.random().toString(36).substring(2, 6);
+    const suffix = generateSuffix(4);
     slug = slug ? `${slug}-${suffix}` : suffix;
   }
 
@@ -27,10 +39,12 @@ export function generateSlug(name: string): string {
     slug = slug.substring(0, MAX_SLUG_LENGTH).replace(/-+$/, '');
   }
 
-  // If slug is reserved, append a suffix to make it valid
   if (RESERVED_SLUGS.has(slug)) {
-    const suffix = Math.random().toString(36).substring(2, 6);
+    const suffix = generateSuffix(4);
     slug = `${slug}-${suffix}`;
+    if (slug.length > MAX_SLUG_LENGTH) {
+      slug = slug.substring(0, MAX_SLUG_LENGTH).replace(/-+$/, '');
+    }
   }
 
   return slug;
