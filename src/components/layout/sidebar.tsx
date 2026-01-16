@@ -7,7 +7,6 @@ import { cn } from '@/lib/utils';
 import {
   Play,
   Workflow,
-  FileText,
   BarChart3,
   Settings,
   Zap,
@@ -25,11 +24,9 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 const navigation = [
+  { name: 'Analytics', href: '/analytics', icon: BarChart3 },
   { name: 'Runs', href: '/runs', icon: Play },
   { name: 'Flows', href: '/flows', icon: Workflow },
-  { name: 'Prompts', href: '/prompts', icon: FileText },
-  { name: 'Analytics', href: '/analytics', icon: BarChart3 },
-  { name: 'Members', href: '/members', icon: Users },
   { name: 'Settings', href: '/settings', icon: Settings },
 ];
 
