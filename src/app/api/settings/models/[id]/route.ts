@@ -52,7 +52,16 @@ export async function GET(
     );
   }
 
-  return NextResponse.json(model, { headers: corsHeaders });
+  // Get count of prompts using this model
+  const { count: promptsUsingCount } = await supabase
+    .from('prompts')
+    .select('id', { count: 'exact', head: true })
+    .eq('selected_model', model.model_id);
+
+  return NextResponse.json(
+    { ...model, prompts_using_count: promptsUsingCount || 0 },
+    { headers: corsHeaders }
+  );
 }
 
 export async function PATCH(

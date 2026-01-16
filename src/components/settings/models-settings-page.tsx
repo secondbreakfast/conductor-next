@@ -113,6 +113,30 @@ export function ModelsSettingsPage({ providers: initialProviders }: ModelsSettin
 
   const handleDeleteModel = async (model: ModelRecord) => {
     try {
+      // First, check how many prompts use this model
+      const checkResponse = await fetch(`/api/settings/models/${model.id}`);
+      if (!checkResponse.ok) {
+        throw new Error('Failed to check model usage');
+      }
+
+      const modelData = await checkResponse.json();
+      const promptsCount = modelData.prompts_using_count || 0;
+
+      if (promptsCount > 0) {
+        // Show confirmation dialog before deleting
+        setModelToDelete({ model, promptsAffected: promptsCount });
+        setDeleteDialogOpen(true);
+      } else {
+        // No prompts affected, delete directly
+        await performDeleteModel(model);
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to delete model');
+    }
+  };
+
+  const performDeleteModel = async (model: ModelRecord) => {
+    try {
       const response = await fetch(`/api/settings/models/${model.id}`, {
         method: 'DELETE',
       });
@@ -122,14 +146,8 @@ export function ModelsSettingsPage({ providers: initialProviders }: ModelsSettin
         throw new Error(error.error || 'Failed to delete model');
       }
 
-      const data = await response.json();
-      if (data.prompts_affected > 0) {
-        setModelToDelete({ model, promptsAffected: data.prompts_affected });
-        setDeleteDialogOpen(true);
-      } else {
-        toast.success(`${model.name} deleted`);
-        window.location.reload();
-      }
+      toast.success(`${model.name} deleted`);
+      window.location.reload();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to delete model');
     }
@@ -137,9 +155,8 @@ export function ModelsSettingsPage({ providers: initialProviders }: ModelsSettin
 
   const confirmDeleteModel = async () => {
     if (!modelToDelete) return;
-
-    toast.success(`${modelToDelete.model.name} deleted`);
-    window.location.reload();
+    setDeleteDialogOpen(false);
+    await performDeleteModel(modelToDelete.model);
   };
 
   return (
@@ -297,14 +314,15 @@ export function ModelsSettingsPage({ providers: initialProviders }: ModelsSettin
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Model deleted</AlertDialogTitle>
+            <AlertDialogTitle>Delete {modelToDelete?.model.name}?</AlertDialogTitle>
             <AlertDialogDescription>
-              {modelToDelete?.promptsAffected} prompt(s) were using this model. They will continue
-              to work but may show a warning.
+              {modelToDelete?.promptsAffected} prompt(s) are using this model. They will continue
+              to work but may show a warning. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogAction onClick={confirmDeleteModel}>OK</AlertDialogAction>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteModel}>Delete</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
