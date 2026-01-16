@@ -102,7 +102,14 @@ async function pollForVideoResult(
   maxAttempts = 120, // 10 minutes with 5 second intervals
   intervalMs = 5000
 ): Promise<RunPromptResult> {
-  const pollUrl = `https://us-central1-aiplatform.googleapis.com/v1/${operationName}:fetchPredictOperation`;
+  // Extract model path from operation name for the fetchPredictOperation endpoint
+  // operationName format: projects/PROJECT/locations/LOCATION/publishers/google/models/MODEL/operations/OP_ID
+  const modelPathMatch = operationName.match(/^(.*?)\/operations\//);
+  if (!modelPathMatch) {
+    throw new Error(`Invalid operation name format: ${operationName}`);
+  }
+  const modelPath = modelPathMatch[1];
+  const pollUrl = `https://us-central1-aiplatform.googleapis.com/v1/${modelPath}:fetchPredictOperation`;
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     // Wait before polling
@@ -114,7 +121,7 @@ async function pollForVideoResult(
         'Authorization': `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({}),
+      body: JSON.stringify({ operationName }),
     });
 
     if (!response.ok) {
