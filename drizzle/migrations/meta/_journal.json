@@ -8,6 +8,13 @@
       "when": 1737043200000,
       "tag": "0000_add_media_relationships",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1737064800000,
+      "tag": "0001_add_video_duration",
+      "breakpoints": true
     }
   ]
 }
