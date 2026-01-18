@@ -1,4 +1,4 @@
-import { RunPromptParams, RunPromptResult, renderTemplate, imageUrlToBase64, getContentTypeFromUrl, uploadToStorage } from '../index';
+import { RunPromptParams, RunPromptResult, renderTemplate, imageUrlToBase64, getContentTypeFromUrl, uploadToStorage, UploadOptions } from '../index';
 
 const VERTEX_AI_URL = 'https://us-central1-aiplatform.googleapis.com/v1';
 
@@ -16,7 +16,11 @@ interface VertexOperationResponse {
   };
 }
 
-export async function runVideoGemini(params: RunPromptParams): Promise<RunPromptResult> {
+export interface VideoGeminiOptions {
+  sourceImageId?: string;
+}
+
+export async function runVideoGemini(params: RunPromptParams, options?: VideoGeminiOptions): Promise<RunPromptResult> {
   const { prompt, run, inputImageUrl, supabase } = params;
 
   const projectId = process.env.GOOGLE_CLOUD_PROJECT_ID;
@@ -87,7 +91,7 @@ export async function runVideoGemini(params: RunPromptParams): Promise<RunPrompt
     const operationName = operationData.name;
 
     // Poll for completion
-    const result = await pollForVideoResult(operationName, accessToken, supabase);
+    const result = await pollForVideoResult(operationName, accessToken, supabase, options);
     return result;
   } catch (error) {
     console.error('Gemini video error:', error);
@@ -99,6 +103,7 @@ async function pollForVideoResult(
   operationName: string,
   accessToken: string,
   supabase: Parameters<typeof uploadToStorage>[0],
+  options?: VideoGeminiOptions,
   maxAttempts = 120, // 10 minutes with 5 second intervals
   intervalMs = 5000
 ): Promise<RunPromptResult> {
@@ -156,7 +161,11 @@ async function pollForVideoResult(
         // Upload to Supabase storage
         const buffer = Buffer.from(videoData, 'base64');
         const filename = `gemini_video_${Date.now()}.mp4`;
-        const { url: outputUrl, mediaId } = await uploadToStorage(supabase, buffer, filename, 'video/mp4');
+        const uploadOptions: UploadOptions = {};
+        if (options?.sourceImageId) {
+          uploadOptions.sourceImageId = options.sourceImageId;
+        }
+        const { url: outputUrl, mediaId } = await uploadToStorage(supabase, buffer, filename, 'video/mp4', uploadOptions);
 
         // Sanitize response - remove base64 data
         const sanitizedResponse = {
