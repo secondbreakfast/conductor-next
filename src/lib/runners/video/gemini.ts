@@ -10,6 +10,10 @@ interface VertexOperationResponse {
       bytesBase64Encoded?: string;
       gcsUri?: string;
     }>;
+    videos?: Array<{
+      bytesBase64Encoded?: string;
+      gcsUri?: string;
+    }>;
   };
   error?: {
     message: string;
@@ -139,35 +143,35 @@ async function pollForVideoResult(
         throw new Error(`Video generation failed: ${data.error.message}`);
       }
 
-      if (data.response?.predictions && data.response.predictions.length > 0) {
-        const prediction = data.response.predictions[0];
+      const videoItems = data.response?.videos || data.response?.predictions;
+      if (videoItems && videoItems.length > 0) {
+        const videoItem = videoItems[0];
 
         let videoData: string | undefined;
 
-        if (prediction.bytesBase64Encoded) {
-          videoData = prediction.bytesBase64Encoded;
-        } else if (prediction.gcsUri) {
-          // Download from GCS
-          videoData = await downloadFromGCS(prediction.gcsUri, accessToken);
+        if (videoItem.bytesBase64Encoded) {
+          videoData = videoItem.bytesBase64Encoded;
+        } else if (videoItem.gcsUri) {
+          videoData = await downloadFromGCS(videoItem.gcsUri, accessToken);
         }
 
         if (!videoData) {
           throw new Error('No video data in response');
         }
 
-        // Upload to Supabase storage
         const buffer = Buffer.from(videoData, 'base64');
         const filename = `gemini_video_${Date.now()}.mp4`;
         const { url: outputUrl, mediaId } = await uploadToStorage(supabase, buffer, filename, 'video/mp4');
 
-        // Sanitize response - remove base64 data
+        const sanitizedItems = videoItems.map((item) => ({
+          ...item,
+          bytesBase64Encoded: item.bytesBase64Encoded ? '[REDACTED]' : undefined,
+        }));
         const sanitizedResponse = {
           operationName,
           status: 'complete',
-          predictions: data.response.predictions.map((p) => ({
-            ...p,
-            bytesBase64Encoded: p.bytesBase64Encoded ? '[REDACTED]' : undefined,
-          })),
+          videos: data.response?.videos ? sanitizedItems : undefined,
+          predictions: data.response?.predictions ? sanitizedItems : undefined,
         };
 
         return {
@@ -180,8 +184,8 @@ async function pollForVideoResult(
         };
       }
 
-      console.error('No predictions found. Response keys:', Object.keys(data.response || {}));
-      throw new Error('No predictions in response');
+      console.error('No video data found. Response keys:', Object.keys(data.response || {}));
+      throw new Error('No video data in response');
     }
 
     console.log(`Video generation in progress (attempt ${attempt + 1}/${maxAttempts})`);
