@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,8 +31,9 @@ interface NewRunFormProps {
 
 export function NewRunForm({ flows }: NewRunFormProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [flowId, setFlowId] = useState<string>('');
+  const [flowId, setFlowId] = useState<string>(searchParams.get('flow_id') || '');
   const [message, setMessage] = useState('');
   const [webhookUrl, setWebhookUrl] = useState('');
   const [variables, setVariables] = useState('{}');
