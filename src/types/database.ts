@@ -50,6 +50,7 @@ export interface User {
 
 export interface Flow {
   id: string;
+  slug: string | null;
   name: string;
   description: string | null;
   created_at: string;

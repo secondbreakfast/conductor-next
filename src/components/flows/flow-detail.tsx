@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { generateSlug, sanitizeSlugInput } from '@/lib/slug';
+import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -32,6 +34,8 @@ export function FlowDetail({ flow }: FlowDetailProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [name, setName] = useState(flow.name);
   const [description, setDescription] = useState(flow.description || '');
+  const [slug, setSlug] = useState(flow.slug || '');
+  const [showSlugWarning, setShowSlugWarning] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [showNewPrompt, setShowNewPrompt] = useState(false);
 
@@ -41,7 +45,7 @@ export function FlowDetail({ flow }: FlowDetailProps) {
       const response = await fetch(`/api/flows/${flow.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ flow: { name, description } }),
+        body: JSON.stringify({ flow: { name, description, slug: slug.trim() || null } }),
       });
 
       if (response.ok) {
@@ -109,6 +113,25 @@ export function FlowDetail({ flow }: FlowDetailProps) {
                     rows={2}
                   />
                 </div>
+                <div>
+                  <Label htmlFor="slug" className="text-sm font-medium">Slug (optional)</Label>
+                  <Input
+                    id="slug"
+                    value={slug}
+                    onChange={(e) => {
+                      const newSlug = sanitizeSlugInput(e.target.value);
+                      setSlug(newSlug);
+                      setShowSlugWarning(flow.slug ? newSlug !== flow.slug : false);
+                    }}
+                    placeholder="my-flow-name"
+                    className="mt-1"
+                  />
+                  {showSlugWarning && (
+                    <p className="mt-1 text-sm text-amber-600">
+                      Changing the slug may break external links.
+                    </p>
+                  )}
+                </div>
               </div>
             ) : (
               <div>
@@ -128,6 +151,8 @@ export function FlowDetail({ flow }: FlowDetailProps) {
                   onClick={() => {
                     setName(flow.name);
                     setDescription(flow.description || '');
+                    setSlug(flow.slug || '');
+                    setShowSlugWarning(false);
                     setIsEditing(false);
                   }}
                 >
@@ -141,7 +166,12 @@ export function FlowDetail({ flow }: FlowDetailProps) {
               </>
             ) : (
               <>
-                <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
+                <Button variant="outline" size="sm" onClick={() => {
+                  setIsEditing(true);
+                  if (!flow.slug && flow.name) {
+                    setSlug(generateSlug(flow.name));
+                  }
+                }}>
                   <Edit className="mr-2 h-4 w-4" />
                   Edit
                 </Button>
@@ -164,6 +194,12 @@ export function FlowDetail({ flow }: FlowDetailProps) {
         <CardContent>
           <div className="flex items-center gap-4 text-sm text-muted-foreground">
             <span>ID: <code className="text-xs">{flow.id}</code></span>
+            {flow.slug && (
+              <>
+                <Separator orientation="vertical" className="h-4" />
+                <span>Slug: <code className="text-xs">{flow.slug}</code></span>
+              </>
+            )}
             <Separator orientation="vertical" className="h-4" />
             <span>{flow.prompts?.length || 0} prompt{(flow.prompts?.length || 0) !== 1 ? 's' : ''}</span>
           </div>

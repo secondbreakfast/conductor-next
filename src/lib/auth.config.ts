@@ -1,10 +1,15 @@
 import type { NextAuthConfig } from 'next-auth';
 import Google from 'next-auth/providers/google';
+import Credentials from 'next-auth/providers/credentials';
 
 const ALLOWED_DOMAIN = 'owner.com';
+const isDev = process.env.NODE_ENV === 'development';
+const hasGoogleOAuth = process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET;
 
-export const authConfig: NextAuthConfig = {
-  providers: [
+const providers: NextAuthConfig['providers'] = [];
+
+if (hasGoogleOAuth) {
+  providers.push(
     Google({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
@@ -15,8 +20,35 @@ export const authConfig: NextAuthConfig = {
           response_type: 'code',
         },
       },
-    }),
-  ],
+    })
+  );
+}
+
+if (isDev && !hasGoogleOAuth) {
+  providers.push(
+    Credentials({
+      id: 'dev-credentials',
+      name: 'Dev Login',
+      credentials: {
+        email: { label: 'Email', type: 'email' },
+      },
+      async authorize(credentials) {
+        const email = credentials?.email as string;
+        if (!email?.endsWith('@owner.com')) {
+          return null;
+        }
+        return {
+          id: 'dev-user',
+          email,
+          name: email.split('@')[0],
+        };
+      },
+    })
+  );
+}
+
+export const authConfig: NextAuthConfig = {
+  providers,
   callbacks: {
     async signIn({ user }) {
       if (!user.email) return false;

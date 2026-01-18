@@ -24,6 +24,7 @@ import { toast } from 'sonner';
 
 interface Flow {
   id: string;
+  slug: string | null;
   name: string;
   description: string | null;
   created_at: string;
@@ -80,7 +81,7 @@ export function FlowsGrid({ flows }: FlowsGridProps) {
         <Card key={flow.id} className="relative">
           <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
             <div className="space-y-1">
-              <Link href={`/flows/${flow.id}`}>
+              <Link href={`/flows/${flow.slug || flow.id}`}>
                 <CardTitle className="text-lg hover:underline">
                   {flow.name}
                 </CardTitle>
@@ -98,7 +99,7 @@ export function FlowsGrid({ flows }: FlowsGridProps) {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <Link href={`/flows/${flow.id}`}>
+                <Link href={`/flows/${flow.slug || flow.id}`}>
                   <DropdownMenuItem>
                     <Edit className="mr-2 h-4 w-4" />
                     Edit
