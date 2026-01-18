@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { Header } from '@/components/layout/header';
 import { FlowDetail } from '@/components/flows/flow-detail';
+import { resolveFlowByIdentifier } from '@/lib/slug';
 
 export default async function FlowPage({
   params,
@@ -11,6 +12,11 @@ export default async function FlowPage({
   const { id } = await params;
   const supabase = await createClient();
 
+  const resolved = await resolveFlowByIdentifier(supabase, id);
+  if (!resolved) {
+    notFound();
+  }
+
   const { data: flow, error } = await supabase
     .from('flows')
     .select(
@@ -19,7 +25,7 @@ export default async function FlowPage({
       prompts(*)
     `
     )
-    .eq('id', id)
+    .eq('id', resolved.id)
     .single();
 
   if (error || !flow) {

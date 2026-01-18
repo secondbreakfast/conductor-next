@@ -218,9 +218,16 @@ async function getAccessToken(): Promise<string> {
   }
 
   // Try to get token from service account credentials
-  const credentials = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
+  let credentials = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
   if (credentials) {
     try {
+      // Fix newlines in private_key that became literal characters when stored in env var
+      // Only escape newlines inside the private_key value, not structural JSON whitespace
+      credentials = credentials.replace(
+        /("private_key"\s*:\s*")([^"]*)/g,
+        (_, prefix, keyContent) => prefix + keyContent.replace(/\n/g, '\\n')
+      );
+
       const creds = JSON.parse(credentials);
       const token = await generateAccessToken(creds);
       return token;

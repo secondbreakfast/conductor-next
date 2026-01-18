@@ -21,21 +21,87 @@ export type Provider =
   | 'Gemini'
   | 'Rails';
 
-// Chat models
+// ============================================================================
+// CONFIGURABLE MODELS - Database Types
+// ============================================================================
+
+export interface ProviderRecord {
+  id: string;
+  name: string;
+  slug: string;
+  enabled: boolean;
+  display_order: number;
+  created_at: string;
+  updated_at: string;
+  models?: ModelRecord[];
+  models_count?: number;
+  enabled_models_count?: number;
+}
+
+export interface ModelRecord {
+  id: string;
+  provider_id: string;
+  provider?: ProviderRecord;
+  name: string;
+  model_id: string;
+  endpoint_types: EndpointType[];
+  enabled: boolean;
+  display_order: number;
+  default_params: ModelDefaultParams;
+  input_price: number | null;
+  output_price: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ModelDefaultParams {
+  temperature?: number;
+  max_tokens?: number;
+  top_p?: number;
+  frequency_penalty?: number;
+  presence_penalty?: number;
+  size?: string;
+  quality?: string;
+  style?: string;
+  [key: string]: unknown;
+}
+
+export interface ModelOption {
+  id: string;
+  provider: { id: string; name: string; slug: string };
+  name: string;
+  model_id: string;
+  default_params: ModelDefaultParams;
+}
+
+// ============================================================================
+// LEGACY CONSTANTS - Deprecated
+// ============================================================================
+
+/**
+ * @deprecated Use database-driven models via /api/models endpoint.
+ * These constants remain for backward compatibility during transition.
+ */
 export const CHAT_MODELS = {
   OpenAI: ['gpt-4.1', 'gpt-4.1-mini', 'gpt-4.1-nano', 'gpt-4o', 'gpt-4o-mini', 'gpt-4o-2024-08-06'],
   Anthropic: ['claude-3-5-sonnet-20240620', 'claude-3-7-sonnet'],
   Gemini: ['gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-3-pro-preview', 'gemini-3-flash-preview'],
 } as const;
 
-// Image models
+/**
+ * @deprecated Use database-driven models via /api/models endpoint.
+ * These constants remain for backward compatibility during transition.
+ */
 export const IMAGE_MODELS = {
   OpenAI: ['gpt-image-1', 'gpt-image-1.5', 'dall-e-3', 'dall-e-2'],
   Gemini: ['gemini-2.5-flash-image-preview', 'gemini-3-pro-image-preview'],
   Stability: ['remove-background', 'replace-background-and-relight'],
 } as const;
 
-// Video models
+/**
+ * @deprecated Use database-driven models via /api/models endpoint.
+ * These constants remain for backward compatibility during transition.
+ */
 export const VIDEO_MODELS = {
   Gemini: ['veo-3.0-generate-001'],
   Rails: ['ffmpeg-concat'],
@@ -253,7 +319,10 @@ export interface WebhookPayload {
   created: number;
 }
 
-// Token pricing (approximate USD per 1K tokens)
+/**
+ * @deprecated Use database-driven pricing via Model.input_price/output_price.
+ * Token pricing (approximate USD per 1K tokens)
+ */
 export const TOKEN_PRICING: Record<string, { input: number; output: number }> = {
   'gpt-4.1': { input: 0.002, output: 0.008 },
   'gpt-4.1-mini': { input: 0.0004, output: 0.0016 },

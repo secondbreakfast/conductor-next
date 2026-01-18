@@ -8,6 +8,7 @@ AI-powered image upscaling and processing platform. This is a modern rebuild of 
 - **Flows**: Define multi-step workflows with different AI providers
 - **Prompts**: Configure prompts for each step (Chat, ImageToImage, ImageToVideo)
 - **Multi-Provider Support**: OpenAI, Anthropic, Gemini, Stability AI
+- **Configurable Models**: Database-driven model configuration with admin UI
 - **Cost Tracking**: Monitor token usage and estimated costs
 - **Webhooks**: Receive status updates when runs complete
 - **Analytics**: View usage statistics and trends
@@ -121,20 +122,25 @@ npm run build
 npm start
 ```
 
-## Supported AI Providers
+## AI Model Configuration
 
-### Chat Models
-- **OpenAI**: gpt-4.1, gpt-4o, gpt-4o-mini
-- **Anthropic**: claude-3-5-sonnet, claude-3-7-sonnet
-- **Gemini**: gemini-2.5-pro, gemini-2.5-flash
+Models are configured in the database and managed through the admin UI at `/settings/models`.
 
-### Image Models
-- **OpenAI**: dall-e-3, gpt-image-1
-- **Gemini**: gemini-2.5-flash-image-preview
-- **Stability**: replace_background_and_relight
+### Supported Providers
+- **OpenAI** - Chat and image generation models
+- **Anthropic** - Chat models (Claude family)
+- **Gemini** - Chat, image, and video generation models
+- **Stability** - Image manipulation models
 
-### Video Models
-- **Gemini**: veo-3.0-generate-001
+### Managing Models
+
+Administrators can:
+- Enable/disable providers and models without code changes
+- Configure default parameters (temperature, max_tokens, etc.)
+- Set token pricing for cost tracking
+- Add new models as they become available
+
+Access the model configuration UI at: `/settings/models`
 
 ## Project Structure
 

@@ -8,8 +8,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Eye, EyeOff, Save, Check, X } from 'lucide-react';
+import { Eye, EyeOff, Save, Check, X, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
+import Link from 'next/link';
 
 export default function SettingsPage() {
   const [showKeys, setShowKeys] = useState(false);
@@ -71,6 +72,30 @@ export default function SettingsPage() {
                   to your <code>.env.local</code> file.
                 </p>
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Model Configuration */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Model Configuration</CardTitle>
+              <CardDescription>
+                Configure which AI providers and models are available for use in flows.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Link
+                href="/settings/models"
+                className="flex items-center justify-between rounded-lg border p-4 hover:bg-muted/50 transition-colors"
+              >
+                <div>
+                  <p className="font-medium">Manage Providers & Models</p>
+                  <p className="text-sm text-muted-foreground">
+                    Add, edit, or disable AI models available in your flows
+                  </p>
+                </div>
+                <ChevronRight className="h-5 w-5 text-muted-foreground" />
+              </Link>
             </CardContent>
           </Card>
 

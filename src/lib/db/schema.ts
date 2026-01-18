@@ -7,9 +7,12 @@ import {
   integer,
   boolean,
   json,
+  jsonb,
   real,
+  decimal,
   index,
   uniqueIndex,
+  unique,
 } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
@@ -24,6 +27,41 @@ export const users = pgTable('users', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
   lastLoginAt: timestamp('last_login_at', { withTimezone: true }),
 });
+
+// Providers table
+export const providers = pgTable('providers', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: text('name').notNull(),
+  slug: text('slug').notNull().unique(),
+  enabled: boolean('enabled').notNull().default(true),
+  displayOrder: integer('display_order').notNull().default(0),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+}, (table) => [
+  index('idx_providers_slug').on(table.slug),
+  index('idx_providers_enabled_order').on(table.enabled, table.displayOrder),
+]);
+
+// Models table
+export const models = pgTable('models', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  providerId: uuid('provider_id').notNull().references(() => providers.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  modelId: text('model_id').notNull(),
+  endpointTypes: text('endpoint_types').array().notNull().default([]),
+  enabled: boolean('enabled').notNull().default(true),
+  displayOrder: integer('display_order').notNull().default(0),
+  defaultParams: jsonb('default_params').default({}),
+  inputPrice: decimal('input_price', { precision: 10, scale: 6 }),
+  outputPrice: decimal('output_price', { precision: 10, scale: 6 }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+}, (table) => [
+  index('idx_models_provider_id').on(table.providerId),
+  index('idx_models_enabled').on(table.enabled),
+  index('idx_models_enabled_provider_order').on(table.enabled, table.providerId, table.displayOrder),
+  unique('uq_provider_model').on(table.providerId, table.modelId),
+]);
 
 // Flows table
 export const flows = pgTable('flows', {
@@ -115,6 +153,17 @@ export const media = pgTable('media', {
 ]);
 
 // Relations
+export const providersRelations = relations(providers, ({ many }) => ({
+  models: many(models),
+}));
+
+export const modelsRelations = relations(models, ({ one }) => ({
+  provider: one(providers, {
+    fields: [models.providerId],
+    references: [providers.id],
+  }),
+}));
+
 export const flowsRelations = relations(flows, ({ many }) => ({
   prompts: many(prompts),
   runs: many(runs),
@@ -137,6 +186,10 @@ export const runsRelations = relations(runs, ({ one }) => ({
 // Type exports
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
+export type Provider = typeof providers.$inferSelect;
+export type NewProvider = typeof providers.$inferInsert;
+export type Model = typeof models.$inferSelect;
+export type NewModel = typeof models.$inferInsert;
 export type Flow = typeof flows.$inferSelect;
 export type Prompt = typeof prompts.$inferSelect;
 export type Run = typeof runs.$inferSelect;

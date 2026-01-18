@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -18,8 +18,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Loader2 } from 'lucide-react';
-import { CHAT_MODELS, IMAGE_MODELS, VIDEO_MODELS, EndpointType, Provider } from '@/types/database';
+import { EndpointType, Provider } from '@/types/database';
 import { toast } from 'sonner';
+import { useModels, getProvidersFromModels, getModelsForProvider } from '@/hooks/use-models';
 
 interface NewPromptDialogProps {
   flowId: string;
@@ -30,80 +31,47 @@ interface NewPromptDialogProps {
 export function NewPromptDialog({ flowId, open, onOpenChange }: NewPromptDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [endpointType, setEndpointType] = useState<EndpointType>('ImageToImage');
-  const [provider, setProvider] = useState<Provider>('Stability');
-  const [model, setModel] = useState<string>('replace_background_and_relight');
+  const [provider, setProvider] = useState<Provider>('' as Provider);
+  const [model, setModel] = useState<string>('');
   const [systemPrompt, setSystemPrompt] = useState('');
   const [backgroundPrompt, setBackgroundPrompt] = useState('');
   const [foregroundPrompt, setForegroundPrompt] = useState('');
   const [negativePrompt, setNegativePrompt] = useState('');
 
-  const getModelsForEndpoint = () => {
-    switch (endpointType) {
-      case 'Chat':
-        return CHAT_MODELS[provider as keyof typeof CHAT_MODELS] || [];
-      case 'ImageToImage':
-        return IMAGE_MODELS[provider as keyof typeof IMAGE_MODELS] || [];
-      case 'ImageToVideo':
-      case 'VideoToVideo':
-        return VIDEO_MODELS[provider as keyof typeof VIDEO_MODELS] || [];
-      default:
-        return [];
-    }
-  };
+  const { models, isLoading: modelsLoading } = useModels({ endpointType });
+  const providers = getProvidersFromModels(models);
+  const providerModels = getModelsForProvider(models, provider.toLowerCase());
 
-  const getProvidersForEndpoint = (): Provider[] => {
-    switch (endpointType) {
-      case 'Chat':
-        return Object.keys(CHAT_MODELS) as Provider[];
-      case 'ImageToImage':
-        return Object.keys(IMAGE_MODELS) as Provider[];
-      case 'ImageToVideo':
-      case 'VideoToVideo':
-        return Object.keys(VIDEO_MODELS) as Provider[];
-      default:
-        return [];
+  useEffect(() => {
+    if (models.length > 0) {
+      const providerInList = providers.some((p) => p.name === provider);
+      if (!provider || !providerInList) {
+        const firstProvider = providers[0];
+        if (firstProvider) {
+          setProvider(firstProvider.name as Provider);
+        }
+      }
     }
-  };
+  }, [models, providers, provider]);
+
+  useEffect(() => {
+    if (providerModels.length > 0) {
+      const modelInList = providerModels.some((m) => m.model_id === model);
+      if (!model || !modelInList) {
+        setModel(providerModels[0].model_id);
+      }
+    }
+  }, [providerModels, model]);
 
   const handleEndpointChange = (value: EndpointType) => {
     setEndpointType(value);
-    const providers = getProvidersForEndpoint();
-    const defaultProvider = providers[0] || 'OpenAI';
-    setProvider(defaultProvider);
-
-    // Set default model
-    const models = (() => {
-      switch (value) {
-        case 'Chat':
-          return CHAT_MODELS[defaultProvider as keyof typeof CHAT_MODELS] || [];
-        case 'ImageToImage':
-          return IMAGE_MODELS[defaultProvider as keyof typeof IMAGE_MODELS] || [];
-        case 'ImageToVideo':
-        case 'VideoToVideo':
-          return VIDEO_MODELS[defaultProvider as keyof typeof VIDEO_MODELS] || [];
-        default:
-          return [];
-      }
-    })();
-    setModel(models[0] || '');
+    setProvider('' as Provider);
+    setModel('');
   };
 
   const handleProviderChange = (value: Provider) => {
     setProvider(value);
-    const models = (() => {
-      switch (endpointType) {
-        case 'Chat':
-          return CHAT_MODELS[value as keyof typeof CHAT_MODELS] || [];
-        case 'ImageToImage':
-          return IMAGE_MODELS[value as keyof typeof IMAGE_MODELS] || [];
-        case 'ImageToVideo':
-        case 'VideoToVideo':
-          return VIDEO_MODELS[value as keyof typeof VIDEO_MODELS] || [];
-        default:
-          return [];
-      }
-    })();
-    setModel(models[0] || '');
+    setModel('');
   };
 
   const handleSubmit = async () => {
@@ -139,15 +107,12 @@ export function NewPromptDialog({ flowId, open, onOpenChange }: NewPromptDialogP
         const error = await response.json();
         toast.error(error.error || 'Failed to create prompt');
       }
-    } catch (error) {
+    } catch {
       toast.error('Failed to create prompt');
     } finally {
       setIsSubmitting(false);
     }
   };
-
-  const availableProviders = getProvidersForEndpoint();
-  const availableModels = getModelsForEndpoint();
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -175,14 +140,18 @@ export function NewPromptDialog({ flowId, open, onOpenChange }: NewPromptDialogP
 
             <div className="space-y-2">
               <Label>Provider</Label>
-              <Select value={provider} onValueChange={(v) => handleProviderChange(v as Provider)}>
+              <Select
+                value={provider}
+                onValueChange={(v) => handleProviderChange(v as Provider)}
+                disabled={modelsLoading}
+              >
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder={modelsLoading ? 'Loading...' : 'Select provider'} />
                 </SelectTrigger>
                 <SelectContent>
-                  {availableProviders.map((p) => (
-                    <SelectItem key={p} value={p}>
-                      {p}
+                  {providers.map((p) => (
+                    <SelectItem key={p.id} value={p.name}>
+                      {p.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -191,14 +160,18 @@ export function NewPromptDialog({ flowId, open, onOpenChange }: NewPromptDialogP
 
             <div className="space-y-2">
               <Label>Model</Label>
-              <Select value={model} onValueChange={setModel}>
+              <Select
+                value={model}
+                onValueChange={setModel}
+                disabled={modelsLoading || !provider}
+              >
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder={modelsLoading ? 'Loading...' : 'Select model'} />
                 </SelectTrigger>
                 <SelectContent>
-                  {availableModels.map((m) => (
-                    <SelectItem key={m} value={m}>
-                      {m}
+                  {providerModels.map((m) => (
+                    <SelectItem key={m.id} value={m.model_id}>
+                      {m.name}
                     </SelectItem>
                   ))}
                 </SelectContent>

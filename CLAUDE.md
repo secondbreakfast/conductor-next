@@ -83,13 +83,16 @@ Migration files are in `drizzle/migrations/` and run in alphabetical order.
 - **Route Groups**:
   - `(app)` - Main app pages with sidebar (requires auth)
   - `(auth)` - Auth pages without sidebar
-- **API Routes**: `/api/runs`, `/api/flows`, `/api/prompts`, `/api/upload`
+- **API Routes**: `/api/runs`, `/api/flows`, `/api/prompts`, `/api/upload`, `/api/models`, `/api/settings/*`
 - **Runners**: AI model integrations in `/src/lib/runners/`
+- **Settings Pages**: `/settings/models` - Admin UI for provider/model configuration
+- **Database Tables**: `providers`, `models` - Configurable AI model registry
 
 ## Features
 
 - Flow-based image processing pipelines
 - Multiple AI providers (OpenAI, Stability, Gemini)
+- Configurable models via database with admin UI at `/settings/models`
 - Background removal (Stability `remove-background`)
 - Real-time run updates via Supabase Realtime
 - Drag-and-drop image uploads
