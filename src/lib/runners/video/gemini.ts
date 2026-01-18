@@ -133,6 +133,8 @@ async function pollForVideoResult(
     const data = await response.json() as VertexOperationResponse;
 
     if (data.done) {
+      console.log('Veo operation completed. Full response:', JSON.stringify(data, null, 2));
+
       if (data.error) {
         throw new Error(`Video generation failed: ${data.error.message}`);
       }
@@ -178,6 +180,7 @@ async function pollForVideoResult(
         };
       }
 
+      console.error('No predictions found. Response keys:', Object.keys(data.response || {}));
       throw new Error('No predictions in response');
     }
 
