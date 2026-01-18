@@ -145,11 +145,13 @@ export const media = pgTable('media', {
   width: integer('width'),
   height: integer('height'),
   duration: real('duration'), // seconds, for videos
+  sourceImageId: text('source_image_id'), // tracks image→video relationship
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 }, (table) => [
   index('idx_media_type').on(table.type),
   index('idx_media_created_at').on(table.createdAt),
+  index('idx_media_source_image_id').on(table.sourceImageId),
 ]);
 
 // Relations

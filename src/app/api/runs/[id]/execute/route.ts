@@ -56,9 +56,9 @@ export async function POST(
 
   // Step 2: Execute each prompt in sequence
   let lastOutput: { image_url?: string; video_url?: string; text?: string } = {};
-  const attachmentUrls = run.attachment_urls as string[] | undefined;
+  let currentAttachmentUrls = run.attachment_urls as string[] | undefined;
   // Use first attachment as the primary input image
-  let inputImageUrl = attachmentUrls?.[0] || null;
+  let inputImageUrl = currentAttachmentUrls?.[0] || null;
 
   for (const prompt of prompts) {
     try {
@@ -67,7 +67,7 @@ export async function POST(
         run,
         runId,
         inputImageUrl,
-        attachmentUrls,
+        attachmentUrls: currentAttachmentUrls,
       });
 
       // Use output as input for next prompt
@@ -77,6 +77,14 @@ export async function POST(
           lastOutput.image_url = result.outputUrl;
         } else if (result.outputType === 'video') {
           lastOutput.video_url = result.outputUrl;
+        }
+      }
+      // Update attachmentUrls for next prompt if result has new ones
+      if (result.attachmentUrls && result.attachmentUrls.length > 0) {
+        currentAttachmentUrls = result.attachmentUrls;
+        // Also update inputImageUrl to first attachment if outputUrl wasn't set
+        if (!result.outputUrl) {
+          inputImageUrl = result.attachmentUrls[0];
         }
       }
       if (result.text) {

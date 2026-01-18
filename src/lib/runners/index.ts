@@ -6,6 +6,7 @@ import { runImageOpenAI } from './image/openai';
 import { runImageGemini } from './image/gemini';
 import { runImageStability } from './image/stability';
 import { runVideoGemini } from './video/gemini';
+import { runImagesToVideos } from './video/images-to-videos';
 import { db, media } from '@/lib/db';
 
 export interface RunPromptParams {
@@ -48,6 +49,9 @@ const runners: Record<string, Record<string, RunnerFunction>> = {
   },
   ImageToVideo: {
     Gemini: runVideoGemini,
+  },
+  ImagesToVideos: {
+    Gemini: runImagesToVideos,
   },
   VideoToVideo: {
     // Rails ffmpeg concat - would need server-side implementation
@@ -126,12 +130,17 @@ export interface UploadResult {
   mediaId: string;
 }
 
+export interface UploadOptions {
+  sourceImageId?: string;
+}
+
 // Helper to upload file to Supabase storage and create media record
 export async function uploadToStorage(
   supabase: SupabaseClient,
   buffer: Buffer,
   filename: string,
-  contentType: string
+  contentType: string,
+  options?: UploadOptions
 ): Promise<UploadResult> {
   const isVideo = contentType.startsWith('video/');
   const type = isVideo ? 'video' : 'image';
@@ -167,6 +176,7 @@ export async function uploadToStorage(
     url,
     mimeType: contentType,
     size: buffer.length,
+    sourceImageId: options?.sourceImageId,
   });
 
   return { url, mediaId };

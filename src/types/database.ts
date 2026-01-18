@@ -9,6 +9,7 @@ export type EndpointType =
   | 'Chat'
   | 'ImageToImage'
   | 'ImageToVideo'
+  | 'ImagesToVideos'
   | 'VideoToVideo'
   | 'AudioToText'
   | 'TextToAudio';
@@ -270,6 +271,7 @@ export interface Media {
   width: number | null;
   height: number | null;
   duration: number | null; // seconds, for videos
+  source_image_id: string | null; // tracks image→video relationship
   created_at: string;
   updated_at: string;
 }
