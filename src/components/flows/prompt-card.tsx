@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -71,6 +71,27 @@ export function PromptCard({ prompt, index, onDelete }: PromptCardProps) {
   const { models, isLoading: modelsLoading } = useModels({ endpointType: formData.endpoint_type });
   const providers = getProvidersFromModels(models);
   const providerModels = getModelsForProvider(models, formData.selected_provider.toLowerCase());
+
+  useEffect(() => {
+    if (models.length > 0) {
+      const providerInList = providers.some((p) => p.name === formData.selected_provider);
+      if (!formData.selected_provider || !providerInList) {
+        const firstProvider = providers[0];
+        if (firstProvider) {
+          setFormData((prev) => ({ ...prev, selected_provider: firstProvider.name as Provider }));
+        }
+      }
+    }
+  }, [models, providers, formData.selected_provider]);
+
+  useEffect(() => {
+    if (providerModels.length > 0) {
+      const modelInList = providerModels.some((m) => m.model_id === formData.selected_model);
+      if (!formData.selected_model || !modelInList) {
+        setFormData((prev) => ({ ...prev, selected_model: providerModels[0].model_id }));
+      }
+    }
+  }, [providerModels, formData.selected_model]);
 
   const handleSave = async () => {
     setIsSaving(true);

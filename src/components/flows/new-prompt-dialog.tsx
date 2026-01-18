@@ -43,17 +43,23 @@ export function NewPromptDialog({ flowId, open, onOpenChange }: NewPromptDialogP
   const providerModels = getModelsForProvider(models, provider.toLowerCase());
 
   useEffect(() => {
-    if (models.length > 0 && !provider) {
-      const firstProvider = providers[0];
-      if (firstProvider) {
-        setProvider(firstProvider.name as Provider);
+    if (models.length > 0) {
+      const providerInList = providers.some((p) => p.name === provider);
+      if (!provider || !providerInList) {
+        const firstProvider = providers[0];
+        if (firstProvider) {
+          setProvider(firstProvider.name as Provider);
+        }
       }
     }
   }, [models, providers, provider]);
 
   useEffect(() => {
-    if (providerModels.length > 0 && !model) {
-      setModel(providerModels[0].model_id);
+    if (providerModels.length > 0) {
+      const modelInList = providerModels.some((m) => m.model_id === model);
+      if (!model || !modelInList) {
+        setModel(providerModels[0].model_id);
+      }
     }
   }, [providerModels, model]);
 
